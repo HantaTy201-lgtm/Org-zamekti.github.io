@@ -12,7 +12,7 @@
 .column {
   border-radius: var(--radius);
   border: 1px solid var(--line);
-  background: rgba(20, 16, 32, 0.55);
+  background: var(--surface-1);
   display: flex;
   flex-direction: column;
   min-height: 180px;
@@ -122,13 +122,13 @@
 
 .kb-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  border-bottom: 1px solid var(--ov-045);
   color: var(--txt-2);
   vertical-align: middle;
 }
 
 .kb-table tbody tr:hover td {
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--ov-035);
 }
 
 .kb-table td input {
@@ -141,7 +141,7 @@
   margin: 0 26px 26px;
   border-radius: var(--radius);
   border: 1px solid var(--line);
-  background: rgba(20, 16, 32, 0.55);
+  background: var(--surface-1);
   overflow: hidden;
 }
 
@@ -167,7 +167,7 @@
 
 .cal-dow {
   padding: 9px 10px;
-  background: rgba(20, 16, 32, 0.85);
+  background: var(--surface-2);
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -177,7 +177,7 @@
 .cal-cell {
   min-height: 104px;
   padding: 7px 8px;
-  background: rgba(16, 13, 26, 0.72);
+  background: var(--surface-2);
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -185,7 +185,7 @@
 }
 
 .cal-cell:hover {
-  background: rgba(24, 19, 38, 0.85);
+  background: var(--surface-2);
 }
 
 .cal-cell.out {

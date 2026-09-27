@@ -244,6 +244,39 @@ export function NodeCard({
     ))
   );
 
+  if (node.kind === 'plain') {
+    return (
+      <div
+        className={`node plain tone-${node.tone}${selected ? ' selected' : ''}${dragging ? ' dragging' : ''}`}
+        data-node-id={node.id}
+        style={{ left: node.x, top: node.y, width: node.w, height: node.h }}
+        onPointerDown={(event) => onPointerDown(event, node)}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          onStartEdit(node);
+        }}
+      >
+        {editing ? (
+          <textarea
+            className="node-plain-input"
+            autoFocus
+            placeholder="Введи текст…"
+            value={node.text ?? ''}
+            onChange={(event) => onPatch(node.id, { text: event.target.value })}
+            onPointerDown={(event) => event.stopPropagation()}
+          />
+        ) : node.text ? (
+          <div className="node-plain-text">{node.text}</div>
+        ) : (
+          <div className="node-plain-text empty">Двойной клик — введи текст</div>
+        )}
+        {selected && !editing && (
+          <span className="node-resize" onPointerDown={(event) => onResizeDown(event, node)} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       className={`node tone-${node.tone}${selected ? ' selected' : ''}${dragging ? ' dragging' : ''}`}

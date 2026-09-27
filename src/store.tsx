@@ -20,11 +20,45 @@ import type {
   ViewKind,
   Workspace,
 } from './types';
+import * as Y from 'yjs';
+import { WebrtcProvider } from 'y-webrtc';
 import { createSeed } from './data/seed';
 import { downloadJson, uid } from './lib/utils';
 
 const STORAGE_KEY = 'org.workspace.v1';
 const HISTORY_LIMIT = 60;
+
+export type CollabStatus = 'off' | 'connecting' | 'online';
+
+export interface Peer {
+  id: number;
+  name: string;
+  color: string;
+}
+
+// Публичные сигнальные серверы y-webrtc: соединяют браузеры напрямую, без своего бэкенда.
+const SIGNALING = ['wss://signaling.yjs.dev', 'wss://y-webrtc-eu.fly.dev'];
+const SHARED_KEYS = ['notes', 'canvases', 'tasks', 'spaces'] as const;
+const MEMBER_COLORS = ['#7c5cff', '#34d399', '#f5b544', '#f472b6', '#5b9dff', '#fb923c'];
+
+type SharedKey = (typeof SHARED_KEYS)[number];
+
+function sharedItems(workspace: Workspace, key: SharedKey): { id: Id }[] {
+  switch (key) {
+    case 'notes':
+      return workspace.notes;
+    case 'canvases':
+      return workspace.canvases;
+    case 'tasks':
+      return workspace.tasks;
+    default:
+      return workspace.spaces;
+  }
+}
+
+function readRoomParam(): string {
+  return new URLSearchParams(window.location.search).get('room') ?? '';
+}
 
 export const VIEW_LABELS: Record<ViewKind, string> = {
   home: 'Главная',
@@ -60,7 +94,15 @@ function loadWorkspace(): Workspace {
     // not an intentional empty one - restore the demo seed instead of a blank app.
     if (notes.length === 0 && canvases.length === 0) return seed;
 
-    const spaces = Array.isArray(parsed.spaces) && parsed.spaces.length ? parsed.spaces : seed.spaces;
+    // Пространства теперь создаёт сам пользователь, поэтому предустановленные убираем,
+    // а заметки и канвасы, которые на них ссылались, остаются без пространства.
+    const presetIds = ['sp_personal', 'sp_work', 'sp_projects', 'sp_study', 'sp_inspire'];
+    const spaces = (Array.isArray(parsed.spaces) ? parsed.spaces : []).filter(
+      (space) => !presetIds.includes(space.id),
+    );
+    const spaceIds = new Set(spaces.map((space) => space.id));
+    const spaceOf = (id: Id | undefined) => (id && spaceIds.has(id) ? id : '');
+
     const tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
     const bases = Array.isArray(parsed.bases) && parsed.bases.length ? parsed.bases : seed.bases;
 
@@ -81,12 +123,21 @@ function loadWorkspace(): Workspace {
 
     return {
       version: 1,
+      theme: parsed.theme === 'light' ? 'light' : 'dark',
       user: parsed.user && typeof parsed.user.name === 'string' ? parsed.user : seed.user,
       spaces,
-      notes,
-      canvases,
-      tasks,
-      bases,
+      notes: notes.map((n) => ({ ...n, spaceId: spaceOf(n.spaceId) })),
+      canvases: canvases.map((c) => ({
+        ...c,
+        spaceId: spaceOf(c.spaceId),
+        grid: false,
+        strokes: Array.isArray(c.strokes) ? c.strokes : [],
+      })),
+      tasks: tasks.map((t) => ({ ...t, spaceId: spaceOf(t.spaceId) })),
+      bases: bases.map((b) => ({
+        ...b,
+        rows: b.rows.map((r) => ({ ...r, spaceId: spaceOf(r.spaceId) })),
+      })),
       tabs,
       activeTabId,
       activeSpaceId,
@@ -104,6 +155,16 @@ function tabTitle(kind: ViewKind, refId: Id | undefined, ws: Workspace): string 
 
 export interface StoreValue {
   ws: Workspace;
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
+  deleteSpace: (id: Id) => void;
+  collabStatus: CollabStatus;
+  peers: Peer[];
+  room: string;
+  shareLink: string;
+  startSharing: () => void;
+  stopSharing: () => void;
+  copyShareLink: () => Promise<void>;
   notesById: Record<Id, Note>;
   canvasesById: Record<Id, Canvas>;
   spacesById: Record<Id, Space>;
@@ -240,11 +301,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setWs((prev) => ({ ...prev, user: { ...prev.user, name } }));
   }, []);
 
+  const setTheme = useCallback((theme: 'dark' | 'light') => {
+    setWs((prev) => ({ ...prev, theme }));
+  }, []);
+
+  const deleteSpace = useCallback((id: Id) => {
+    setWs((prev) => ({
+      ...prev,
+      spaces: prev.spaces.filter((s) => s.id !== id),
+      notes: prev.notes.map((n) => (n.spaceId === id ? { ...n, spaceId: '' } : n)),
+      canvases: prev.canvases.map((c) => (c.spaceId === id ? { ...c, spaceId: '' } : c)),
+      tasks: prev.tasks.map((t) => (t.spaceId === id ? { ...t, spaceId: '' } : t)),
+      bases: prev.bases.map((b) => ({
+        ...b,
+        rows: b.rows.map((r) => (r.spaceId === id ? { ...r, spaceId: '' } : r)),
+      })),
+      activeSpaceId: prev.activeSpaceId === id ? 'all' : prev.activeSpaceId,
+    }));
+  }, []);
+
   const createNote = useCallback((patch: Partial<Note> = {}, open = true) => {
     const timestamp = new Date().toISOString();
     const current = wsRef.current;
     const spaceId =
-      patch.spaceId ?? (current.activeSpaceId !== 'all' ? current.activeSpaceId : current.spaces[0].id);
+      patch.spaceId ?? (current.activeSpaceId !== 'all' ? current.activeSpaceId : (current.spaces[0]?.id ?? ''));
     const note: Note = {
       id: uid('n'),
       title: patch.title ?? 'Без названия',
@@ -303,7 +383,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       id: uid('cv'),
       name,
       description: 'Собери идеи в узлы и соедини их связями.',
-      spaceId: spaceId ?? (current.activeSpaceId !== 'all' ? current.activeSpaceId : current.spaces[0].id),
+      spaceId: spaceId ?? (current.activeSpaceId !== 'all' ? current.activeSpaceId : (current.spaces[0]?.id ?? '')),
       nodes: [
         {
           id: uid('cn'),
@@ -321,8 +401,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         },
       ],
       edges: [],
+      strokes: [],
       viewport: { x: 0, y: 0, zoom: 1 },
-      grid: true,
+      grid: false,
       updatedAt: timestamp,
     };
     const tab: Tab = { id: uid('tab'), kind: 'canvas', refId: canvas.id, title: canvas.name };
@@ -407,7 +488,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       priority: patch.priority ?? 'med',
       due: patch.due,
       spaceId:
-        patch.spaceId ?? (current.activeSpaceId !== 'all' ? current.activeSpaceId : current.spaces[0].id),
+        patch.spaceId ?? (current.activeSpaceId !== 'all' ? current.activeSpaceId : (current.spaces[0]?.id ?? '')),
       noteId: patch.noteId,
       canvasId: patch.canvasId,
       createdAt: new Date().toISOString(),
@@ -456,6 +537,171 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setWs(createSeed());
   }, []);
 
+  // --- совместная работа: y-webrtc соединяет браузеры напрямую, своего сервера не нужно ---
+  const [room, setRoom] = useState(readRoomParam);
+  const [collabStatus, setCollabStatus] = useState<CollabStatus>(room ? 'connecting' : 'off');
+  const [peers, setPeers] = useState<Peer[]>([]);
+  const ydocRef = useRef<Y.Doc | null>(null);
+  const applyingRemote = useRef(false);
+  const roomReady = useRef(false);
+  const myColor = useRef(MEMBER_COLORS[Math.floor(Math.random() * MEMBER_COLORS.length)]);
+
+  useEffect(() => {
+    if (!room) {
+      setCollabStatus('off');
+      setPeers([]);
+      return;
+    }
+
+    setCollabStatus('connecting');
+    roomReady.current = false;
+    const doc = new Y.Doc();
+    const provider = new WebrtcProvider(`org-${room}`, doc, { signaling: SIGNALING });
+    ydocRef.current = doc;
+
+    const maps = SHARED_KEYS.map((key) => doc.getMap<Record<string, unknown>>(key));
+    const meta = doc.getMap<unknown>('meta');
+
+    const adoptRoom = () => {
+      applyingRemote.current = true;
+      setWs((prev) => {
+        const next: Workspace = { ...prev };
+        SHARED_KEYS.forEach((key, index) => {
+          const incoming = Array.from(maps[index].values());
+          if (key === 'notes') next.notes = incoming as unknown as Note[];
+          else if (key === 'canvases') next.canvases = incoming as unknown as Canvas[];
+          else if (key === 'tasks') next.tasks = incoming as unknown as Task[];
+          else next.spaces = incoming as unknown as Space[];
+        });
+        return next;
+      });
+      window.setTimeout(() => {
+        applyingRemote.current = false;
+      }, 0);
+    };
+
+    // Первый участник наполняет комнату своим пространством, остальные подхватывают общее,
+    // чтобы личные демо-данные не смешивались с чужими.
+    const openRoom = () => {
+      if (roomReady.current) return;
+      roomReady.current = true;
+      const hasContent = maps.some((map) => map.size > 0) || meta.get('seeded') === true;
+      if (hasContent) {
+        adoptRoom();
+      } else {
+        meta.set('seeded', true);
+        doc.transact(() => {
+          SHARED_KEYS.forEach((key, index) => {
+            for (const item of sharedItems(wsRef.current, key)) {
+              maps[index].set(item.id, item as unknown as Record<string, unknown>);
+            }
+          });
+        });
+      }
+    };
+
+    const applyRemote = () => {
+      if (!roomReady.current) return;
+      adoptRoom();
+    };
+
+    maps.forEach((map) => map.observe(applyRemote));
+
+    const awareness = provider.awareness;
+    const syncPeers = () => {
+      const list: Peer[] = [];
+      awareness.getStates().forEach((state, clientId) => {
+        if (clientId === doc.clientID) return;
+        const user = state.user as { name?: string; color?: string } | undefined;
+        list.push({
+          id: clientId,
+          name: user?.name ?? 'Гость',
+          color: user?.color ?? MEMBER_COLORS[0],
+        });
+      });
+      setPeers(list);
+      setCollabStatus(list.length ? 'online' : roomReady.current ? 'online' : 'connecting');
+    };
+
+    awareness.setLocalStateField('user', {
+      name: wsRef.current.user.name,
+      color: myColor.current,
+    });
+    awareness.on('change', syncPeers);
+    provider.on('peers', syncPeers);
+    provider.on('synced', ({ synced }: { synced: boolean }) => {
+      if (synced) {
+        openRoom();
+        syncPeers();
+      }
+    });
+    // Если собеседников нет, сигнальный сервер может не прислать synced — открываем комнату сами.
+    const fallback = window.setTimeout(() => {
+      openRoom();
+      syncPeers();
+    }, 2500);
+
+    return () => {
+      window.clearTimeout(fallback);
+      awareness.off('change', syncPeers);
+      maps.forEach((map) => map.unobserve(applyRemote));
+      provider.destroy();
+      doc.destroy();
+      ydocRef.current = null;
+      roomReady.current = false;
+      setCollabStatus('off');
+      setPeers([]);
+    };
+  }, [room]);
+
+  useEffect(() => {
+    if (!room) return;
+    const doc = ydocRef.current;
+    const timer = window.setTimeout(() => {
+      if (!doc || applyingRemote.current || !roomReady.current) return;
+      doc.transact(() => {
+        SHARED_KEYS.forEach((key) => {
+          const map = doc.getMap<Record<string, unknown>>(key);
+          const local = sharedItems(wsRef.current, key);
+          const ids = new Set(local.map((item) => item.id));
+          for (const item of local) {
+            if (JSON.stringify(map.get(item.id)) !== JSON.stringify(item)) {
+              map.set(item.id, item as unknown as Record<string, unknown>);
+            }
+          }
+          for (const existing of Array.from(map.keys())) {
+            if (!ids.has(existing)) map.delete(existing);
+          }
+        });
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [room, ws.notes, ws.canvases, ws.tasks, ws.spaces]);
+
+  const shareLink = `${window.location.origin}${window.location.pathname}?room=${room}`;
+
+  const startSharing = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('room', Math.random().toString(36).slice(2, 10));
+    window.location.search = params.toString();
+  }, []);
+
+  const stopSharing = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('room');
+    window.location.search = params.toString();
+  }, []);
+
+  const copyShareLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      toast('Ссылка скопирована — отправь её другу');
+    } catch {
+      toast('Не удалось скопировать, скопируй ссылку вручную');
+    }
+  }, [shareLink, toast]);
+
   const activeTab = useMemo(
     () => ws.tabs.find((t) => t.id === ws.activeTabId) ?? ws.tabs[0],
     [ws.tabs, ws.activeTabId],
@@ -463,6 +709,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value: StoreValue = {
     ws,
+    theme: ws.theme ?? 'dark',
+    setTheme,
+    deleteSpace,
+    collabStatus,
+    peers,
+    room,
+    shareLink,
+    startSharing,
+    stopSharing,
+    copyShareLink,
     notesById,
     canvasesById,
     spacesById,

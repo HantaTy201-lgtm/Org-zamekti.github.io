@@ -49,9 +49,13 @@ function ActiveView() {
 }
 
 export function App() {
-  const { paletteOpen, settingsOpen, toastMessage, openPalette } = useStore();
+  const { paletteOpen, settingsOpen, toastMessage, openPalette, theme } = useStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

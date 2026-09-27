@@ -21,6 +21,7 @@ export function Sidebar() {
     setActiveSpace,
     createNote,
     createSpace,
+    deleteSpace,
     setSettingsOpen,
     exportJson,
     importJson,
@@ -55,7 +56,12 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-brand">
+      <div
+        className="sidebar-brand"
+        role="button"
+        title="На главную"
+        onClick={() => openTab('home')}
+      >
         <OrgMark size={30} className="brand-mark" />
         <span className="brand-name">Org</span>
       </div>
@@ -93,6 +99,17 @@ export function Sidebar() {
               }}
             >
               <Icon name="plus" size={14} />
+            </button>
+            <button
+              className="icon-btn space-del"
+              title="Удалить пространство"
+              onClick={(event) => {
+                event.stopPropagation();
+                deleteSpace(space.id);
+                toast(`Пространство «${space.name}» удалено`);
+              }}
+            >
+              <Icon name="trash" size={13} />
             </button>
           </div>
         ))}

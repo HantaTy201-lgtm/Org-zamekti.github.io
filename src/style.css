@@ -10,8 +10,8 @@
   --panel-solid: #16121f;
   --card: rgba(31, 26, 47, 0.72);
   --card-hover: rgba(38, 32, 57, 0.85);
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.13);
+  --line: var(--ov-07);
+  --line-strong: var(--ov-13);
   --txt: #ece9f6;
   --txt-2: #a49fba;
   --txt-3: #706a88;
@@ -81,14 +81,14 @@ textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--ov-10);
   border: 3px solid transparent;
   background-clip: content-box;
   border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--ov-20);
   background-clip: content-box;
 }
 
@@ -123,7 +123,7 @@ textarea {
   flex-direction: column;
   min-height: 0;
   border-right: 1px solid var(--line);
-  background: rgba(16, 13, 26, 0.55);
+  background: var(--surface-1);
   backdrop-filter: blur(14px);
 }
 
@@ -167,7 +167,7 @@ textarea {
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--ov-045);
   color: var(--txt);
 }
 
@@ -213,12 +213,12 @@ textarea {
 }
 
 .space-row:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--ov-045);
   color: var(--txt);
 }
 
 .space-row.active {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--ov-06);
   color: var(--txt);
 }
 
@@ -269,7 +269,7 @@ textarea {
 }
 
 .user-chip:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--ov-05);
   color: var(--txt);
 }
 
@@ -306,7 +306,7 @@ textarea {
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--ov-06);
   color: var(--txt);
 }
 
@@ -336,7 +336,7 @@ textarea {
   height: 48px;
   padding: 0 12px;
   border-bottom: 1px solid var(--line);
-  background: rgba(14, 11, 23, 0.6);
+  background: var(--surface-1);
   backdrop-filter: blur(14px);
 }
 
@@ -366,12 +366,12 @@ textarea {
 }
 
 .tab:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--ov-05);
   color: var(--txt);
 }
 
 .tab.active {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ov-07);
   border-color: var(--line-strong);
   color: var(--txt);
 }
@@ -383,12 +383,112 @@ textarea {
   display: grid;
   place-items: center;
   color: var(--txt-3);
-  opacity: 0.7;
+  opacity: 1;
 }
 
 .tab .tab-close:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--ov-10);
   color: var(--txt);
+}
+
+.sidebar-brand {
+  cursor: pointer;
+}
+
+.space-del {
+  opacity: 0;
+}
+
+.space-row:hover .space-del {
+  opacity: 1;
+}
+
+.theme-row {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-opt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--txt-2);
+  font-size: 13px;
+}
+
+.theme-opt.active {
+  border-color: var(--violet);
+  color: var(--txt);
+  background: var(--violet-soft);
+}
+
+.theme-opt .swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+}
+
+.collab-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.collab-link {
+  flex: 1;
+  min-width: 180px;
+  font-size: 12px;
+}
+
+.peer-avatars {
+  display: flex;
+  align-items: center;
+}
+
+.peer-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  margin-left: -6px;
+  border: 2px solid var(--bg-1);
+}
+
+.peer-avatar:first-child {
+  margin-left: 0;
+}
+
+.collab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.collab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--txt-3);
+}
+
+.collab-dot.online {
+  background: #34d399;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2);
+}
+
+.collab-dot.connecting {
+  background: #f5b544;
 }
 
 .topbar-right {
@@ -406,7 +506,7 @@ textarea {
   padding: 6px 10px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ov-03);
   color: var(--txt-3);
   font-size: 13px;
 }
@@ -483,14 +583,14 @@ textarea {
   padding: 7px 12px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ov-04);
   color: var(--txt);
   font-size: 13px;
   transition: background 0.14s ease, border-color 0.14s ease;
 }
 
 .btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--ov-08);
   border-color: var(--line-strong);
 }
 
@@ -512,7 +612,7 @@ textarea {
 }
 
 .btn.ghost:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--ov-06);
   color: var(--txt);
 }
 
@@ -535,7 +635,7 @@ textarea {
   padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ov-04);
   font-size: 11.5px;
   color: var(--txt-2);
 }
@@ -576,7 +676,7 @@ textarea {
 
 .panel {
   border-left: 1px solid var(--line);
-  background: rgba(17, 14, 28, 0.62);
+  background: var(--surface-1);
   backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
@@ -611,7 +711,7 @@ textarea {
 }
 
 .panel-tab.active {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ov-07);
   color: var(--txt);
 }
 
@@ -674,7 +774,7 @@ textarea {
 }
 
 .backlink:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--ov-05);
   color: var(--txt);
 }
 
@@ -691,7 +791,7 @@ textarea {
 }
 
 .task-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ov-04);
 }
 
 .task-row.done .task-text {
@@ -770,7 +870,7 @@ textarea {
   font-size: 12px;
   padding: 1.5px 5px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ov-07);
   color: #d8cffd;
 }
 
@@ -850,7 +950,7 @@ textarea {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(6, 4, 12, 0.62);
+  background: var(--scrim);
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
@@ -862,7 +962,7 @@ textarea {
   width: min(620px, 92vw);
   border-radius: 16px;
   border: 1px solid var(--line-strong);
-  background: rgba(22, 18, 34, 0.97);
+  background: var(--panel-solid);
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -951,7 +1051,7 @@ textarea {
   padding: 8px 10px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ov-04);
   color: var(--txt);
 }
 
@@ -964,7 +1064,7 @@ textarea {
   width: 36px;
   height: 20px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ov-12);
   padding: 2px;
   transition: background 0.15s ease;
 }
@@ -993,7 +1093,7 @@ textarea {
   padding: 6px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
-  background: rgba(24, 20, 37, 0.98);
+  background: var(--panel-solid);
   box-shadow: var(--shadow);
 }
 
@@ -1010,7 +1110,7 @@ textarea {
 }
 
 .menu button:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ov-07);
   color: var(--txt);
 }
 
@@ -1034,7 +1134,7 @@ textarea {
   padding: 9px 16px;
   border-radius: 999px;
   border: 1px solid var(--line-strong);
-  background: rgba(24, 20, 37, 0.96);
+  background: var(--panel-solid);
   box-shadow: var(--shadow);
   font-size: 13px;
   color: var(--txt);
@@ -1046,4 +1146,75 @@ textarea {
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+:root[data-theme='light'] {
+  --bg-0: #f5f3fb;
+  --bg-1: #ffffff;
+  --bg-2: #efecf8;
+  --panel: rgba(255, 255, 255, 0.82);
+  --panel-solid: #ffffff;
+  --card: rgba(255, 255, 255, 0.86);
+  --card-hover: #ffffff;
+  --txt: #1b1630;
+  --txt-2: #57506e;
+  --txt-3: #8b849f;
+  --violet: #6b4bf5;
+  --violet-2: #5a37e6;
+  --violet-soft: rgba(107, 75, 245, 0.12);
+  --danger: #dc2626;
+  --shadow: 0 18px 44px rgba(38, 28, 74, 0.16);
+  --shadow-sm: 0 6px 18px rgba(38, 28, 74, 0.1);
+  --ov-03: rgba(24, 17, 51, 0.03);
+  --ov-035: rgba(24, 17, 51, 0.035);
+  --ov-04: rgba(24, 17, 51, 0.04);
+  --ov-045: rgba(24, 17, 51, 0.045);
+  --ov-05: rgba(24, 17, 51, 0.05);
+  --ov-06: rgba(24, 17, 51, 0.06);
+  --ov-07: rgba(24, 17, 51, 0.075);
+  --ov-075: rgba(24, 17, 51, 0.08);
+  --ov-08: rgba(24, 17, 51, 0.085);
+  --ov-10: rgba(24, 17, 51, 0.1);
+  --ov-12: rgba(24, 17, 51, 0.12);
+  --ov-13: rgba(24, 17, 51, 0.14);
+  --ov-20: rgba(24, 17, 51, 0.2);
+  --ov-28: rgba(24, 17, 51, 0.26);
+  --surface-1: rgba(255, 255, 255, 0.72);
+  --surface-2: #ffffff;
+  --surface-3: #ffffff;
+  --card-inner: #ffffff;
+  --field-bg: rgba(24, 17, 51, 0.06);
+  --board-bg: #f7f5fd;
+  --scrim: rgba(30, 22, 60, 0.28);
+  --line: rgba(24, 17, 51, 0.1);
+  --line-strong: rgba(24, 17, 51, 0.18);
+  color-scheme: light;
+}
+
+:root[data-theme='light'] .app {
+  background:
+    radial-gradient(900px 520px at 6% -12%, rgba(124, 92, 255, 0.12), transparent 62%),
+    radial-gradient(760px 480px at 96% 4%, rgba(52, 211, 153, 0.1), transparent 60%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+}
+
+:root[data-theme='light'] .node-title,
+:root[data-theme='light'] .node-center-title h3,
+:root[data-theme='light'] .node-edit,
+:root[data-theme='light'] .node-item-input,
+:root[data-theme='light'] .editor-title,
+:root[data-theme='light'] .view-title,
+:root[data-theme='light'] .kb-table td input,
+:root[data-theme='light'] .task-card .title input,
+:root[data-theme='light'] .node-plain-input,
+:root[data-theme='light'] .node-plain-text {
+  color: var(--txt);
+}
+
+:root[data-theme='light'] .node-box {
+  color: transparent;
+}
+
+:root[data-theme='light'] .node.dragging {
+  box-shadow: 0 22px 44px rgba(38, 28, 74, 0.24);
 }

@@ -479,14 +479,18 @@ export const TABS: Tab[] = [
 ];
 
 export function createSeed(): Workspace {
+  // Пространства пользователь создаёт сам, поэтому демо-контент идёт без привязки к ним.
   return {
     version: 1,
     user: { name: 'Alex' },
-    spaces: SPACES,
-    notes: NOTES,
-    canvases: CANVASES,
-    tasks: TASKS,
-    bases: BASES,
+    spaces: [],
+    notes: NOTES.map((item) => ({ ...item, spaceId: '' })),
+    canvases: CANVASES.map((item) => ({ ...item, grid: false, spaceId: '' })),
+    tasks: TASKS.map((item) => ({ ...item, spaceId: '' })),
+    bases: BASES.map((item) => ({
+      ...item,
+      rows: item.rows.map((row) => ({ ...row, spaceId: '' })),
+    })),
     tabs: TABS,
     activeTabId: TABS[0].id,
     activeSpaceId: 'all',

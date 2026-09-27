@@ -26,7 +26,7 @@ export interface Note {
   pinned?: boolean;
 }
 
-export type CanvasNodeKind = 'note' | 'checklist' | 'quote' | 'links' | 'text';
+export type CanvasNodeKind = 'note' | 'checklist' | 'quote' | 'links' | 'text' | 'plain';
 
 export interface NodeLink {
   id: Id;
@@ -48,6 +48,8 @@ export interface CanvasNode {
   items: ChecklistItem[];
   links: NodeLink[];
   noteId?: Id;
+  text?: string;
+  rev?: number;
 }
 
 export interface CanvasEdge {
@@ -55,6 +57,15 @@ export interface CanvasEdge {
   from: Id;
   to: Id;
   tone: ToneKey;
+  rev?: number;
+}
+
+export interface Stroke {
+  id: Id;
+  points: number[];
+  color: string;
+  width: number;
+  rev?: number;
 }
 
 export interface Viewport {
@@ -70,6 +81,7 @@ export interface Canvas {
   spaceId: Id;
   nodes: CanvasNode[];
   edges: CanvasEdge[];
+  strokes?: Stroke[];
   viewport: Viewport;
   grid: boolean;
   fitted?: boolean;
@@ -122,6 +134,7 @@ export interface Tab {
 export interface Workspace {
   version: number;
   user: { name: string };
+  theme?: 'dark' | 'light';
   spaces: Space[];
   notes: Note[];
   canvases: Canvas[];

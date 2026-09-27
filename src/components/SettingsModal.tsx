@@ -16,7 +16,23 @@ const SHORTCUTS: { keys: string; action: string }[] = [
 ];
 
 export function SettingsModal() {
-  const { ws, setSettingsOpen, exportJson, importJson, resetDemo, setUserName, toast } = useStore();
+  const {
+    ws,
+    setSettingsOpen,
+    exportJson,
+    importJson,
+    resetDemo,
+    setUserName,
+    toast,
+    theme,
+    setTheme,
+    collabStatus,
+    peers,
+    shareLink,
+    startSharing,
+    stopSharing,
+    copyShareLink,
+  } = useStore();
   const [name, setName] = useState(ws.user.name);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +60,83 @@ export function SettingsModal() {
                 toast('Имя сохранено');
               }
             }} />
+          </div>
+
+          <div className="panel-section" style={{ margin: '12px 18px 0' }}>
+            <h4>Внешний вид</h4>
+            <div className="theme-row">
+              <button
+                className={`theme-opt${theme === 'dark' ? ' active' : ''}`}
+                onClick={() => setTheme('dark')}
+              >
+                <span
+                  className="swatch"
+                  style={{ background: 'linear-gradient(135deg, #1b1530, #0c0916)' }}
+                />
+                Тёмная
+              </button>
+              <button
+                className={`theme-opt${theme === 'light' ? ' active' : ''}`}
+                onClick={() => setTheme('light')}
+              >
+                <span
+                  className="swatch"
+                  style={{ background: 'linear-gradient(135deg, #ffffff, #e9e4f7)' }}
+                />
+                Светлая
+              </button>
+            </div>
+          </div>
+
+          <div className="panel-section" style={{ margin: '12px 18px 0' }}>
+            <h4>Совместная работа</h4>
+            <div className="stat-label" style={{ marginBottom: 10 }}>
+              {collabStatus === 'off'
+                ? 'Создай общую комнату и отправь ссылку другу — заметки, канвасы и задачи будут синхронизироваться в реальном времени.'
+                : collabStatus === 'connecting'
+                  ? 'Подключаюсь к комнате…'
+                  : `В комнате ${peers.length + 1} участник(ов).`}
+            </div>
+            {collabStatus === 'off' ? (
+              <button className="btn primary" onClick={startSharing}>
+                <Icon name="branch" size={15} />
+                Создать общую комнату
+              </button>
+            ) : (
+              <div className="collab-row">
+                <input
+                  className="collab-link"
+                  readOnly
+                  value={shareLink}
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+                <button className="btn" onClick={() => void copyShareLink()}>
+                  <Icon name="link" size={15} />
+                  Копировать
+                </button>
+                <button className="btn" onClick={stopSharing}>
+                  <Icon name="close" size={15} />
+                  Выйти
+                </button>
+              </div>
+            )}
+            {peers.length > 0 && (
+              <div className="peer-avatars" style={{ marginTop: 10 }}>
+                <span className="peer-avatar" style={{ background: 'var(--violet)' }}>
+                  {ws.user.name.slice(0, 1)}
+                </span>
+                {peers.map((peer) => (
+                  <span
+                    key={peer.id}
+                    className="peer-avatar"
+                    style={{ background: peer.color }}
+                    title={peer.name}
+                  >
+                    {peer.name.slice(0, 1)}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="panel-section" style={{ margin: '12px 18px 0' }}>

@@ -15,20 +15,38 @@ import {
   type CanvasEdge,
   type CanvasNode,
   type Id,
+  type Stroke,
   type ToneKey,
   type Viewport,
 } from '../../types';
 
-type Tool = 'select' | 'create' | 'text' | 'connect' | 'eraser' | 'magic';
+type Tool = 'select' | 'create' | 'text' | 'pen' | 'connect' | 'eraser' | 'magic';
+
+const PEN_COLORS = ['#7c5cff', '#34d399', '#f5b544', '#f472b6', '#5b9dff', '#ece9f6'];
 
 const TOOLS: { id: Tool; icon: string; title: string }[] = [
   { id: 'select', icon: 'cursor', title: 'Выделение · V' },
   { id: 'create', icon: 'square', title: 'Узел-блок · R (протяни мышью)' },
-  { id: 'text', icon: 'type', title: 'Текстовый узел · T' },
+  { id: 'text', icon: 'type', title: 'Текст · T (клик по холсту)' },
+  { id: 'pen', icon: 'pen', title: 'Рисование от руки · P' },
   { id: 'connect', icon: 'branch', title: 'Связь · C' },
   { id: 'eraser', icon: 'eraser', title: 'Ластик · E' },
   { id: 'magic', icon: 'wand', title: 'Выровнять схему · M' },
 ];
+
+function toPointList(points: number[]): string {
+  const parts: string[] = [];
+  for (let i = 0; i + 1 < points.length; i += 2) parts.push(`${points[i]},${points[i + 1]}`);
+  return parts.join(' ');
+}
+
+function capturePointer(element: HTMLElement, pointerId: number) {
+  try {
+    element.setPointerCapture(pointerId);
+  } catch {
+    // указатель уже отпущен — просто продолжаем без захвата
+  }
+}
 
 type Gesture =
   | { kind: 'pan'; startX: number; startY: number; vx: number; vy: number }
@@ -36,7 +54,8 @@ type Gesture =
   | { kind: 'resize'; id: Id; startW: number; startH: number; originX: number; originY: number }
   | { kind: 'marquee'; x0: number; y0: number; additive: boolean }
   | { kind: 'link'; from: Id }
-  | { kind: 'create'; x0: number; y0: number };
+  | { kind: 'create'; x0: number; y0: number }
+  | { kind: 'draw'; id: Id; points: number[] };
 
 function isEditable(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -119,6 +138,10 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   const [linkTo, setLinkTo] = useState<{ from: Id; x: number; y: number } | null>(null);
   const [quickAdd, setQuickAdd] = useState(false);
   const [spacePressed, setSpacePressed] = useState(false);
+  const [penColor, setPenColor] = useState(PEN_COLORS[0]);
+  const [draftStroke, setDraftStroke] = useState<Stroke | null>(null);
+
+  const strokes = canvas.strokes ?? [];
 
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -218,7 +241,10 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     (id: Id, patch: Partial<CanvasNode>) => {
       mutateCanvas(
         canvas.id,
-        (c) => ({ ...c, nodes: c.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)) }),
+        (c) => ({
+          ...c,
+          nodes: c.nodes.map((n) => (n.id === id ? { ...n, ...patch, rev: Date.now() } : n)),
+        }),
         { history: false },
       );
     },
@@ -229,6 +255,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     (partial: Partial<CanvasNode> & { x: number; y: number }) => {
       const node: CanvasNode = {
         id: uid('cn'),
+        rev: Date.now(),
         w: 232,
         h: 132,
         title: 'Новый узел',
@@ -269,7 +296,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       }
       mutateCanvas(canvas.id, (c) => ({
         ...c,
-        edges: [...c.edges, { id: uid('ce'), from, to, tone: 'violet' }],
+        edges: [...c.edges, { id: uid('ce'), from, to, tone: 'violet', rev: Date.now() }],
       }));
     },
     [canvas.id, canvas.edges, mutateCanvas, toast],
@@ -396,19 +423,39 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     const world = toWorld(event.clientX, event.clientY);
 
     if (event.button === 1 || spacePressed) {
-      board.setPointerCapture(event.pointerId);
+      capturePointer(board, event.pointerId);
       gesture.current = { kind: 'pan', startX: event.clientX, startY: event.clientY, vx: view.x, vy: view.y };
       return;
     }
     if (event.button !== 0) return;
     if (target.closest('input, textarea')) return;
 
+    if (tool === 'eraser') {
+      const strokeEl = target.closest('[data-stroke-id]') as HTMLElement | null;
+      if (strokeEl) {
+        const strokeId = strokeEl.dataset.strokeId as Id;
+        mutateCanvas(canvas.id, (c) => ({
+          ...c,
+          strokes: (c.strokes ?? []).filter((s) => s.id !== strokeId),
+        }));
+        return;
+      }
+    }
+
+    if (tool === 'pen') {
+      const stroke: Stroke = { id: uid('st'), points: [world.x, world.y], color: penColor, width: 3 };
+      capturePointer(board, event.pointerId);
+      gesture.current = { kind: 'draw', id: stroke.id, points: stroke.points };
+      setDraftStroke(stroke);
+      return;
+    }
+
     const handleEl = target.closest('[data-handle]') as HTMLElement | null;
     if (handleEl) {
       const nodeEl = target.closest('[data-node-id]') as HTMLElement | null;
       const from = nodeEl?.dataset.nodeId ?? selection[0];
       if (from) {
-        board.setPointerCapture(event.pointerId);
+        capturePointer(board, event.pointerId);
         gesture.current = { kind: 'link', from };
         setLinkTo({ from, x: world.x, y: world.y });
       }
@@ -420,7 +467,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       const nodeEl = target.closest('[data-node-id]') as HTMLElement | null;
       const node = canvas.nodes.find((n) => n.id === nodeEl?.dataset.nodeId);
       if (node) {
-        board.setPointerCapture(event.pointerId);
+        capturePointer(board, event.pointerId);
         pushHistory();
         gesture.current = {
           kind: 'resize',
@@ -442,7 +489,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         return;
       }
       if (tool === 'connect') {
-        board.setPointerCapture(event.pointerId);
+        capturePointer(board, event.pointerId);
         gesture.current = { kind: 'link', from: id };
         setLinkTo({ from: id, x: world.x, y: world.y });
         return;
@@ -463,19 +510,31 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
           starts[n.id] = { x: n.x, y: n.y };
         });
       if (!starts[id]) starts[id] = { x: world.x, y: world.y };
-      board.setPointerCapture(event.pointerId);
+      capturePointer(board, event.pointerId);
       gesture.current = { kind: 'node', originX: world.x, originY: world.y, starts, moved: false };
       return;
     }
 
     if (tool === 'create') {
-      board.setPointerCapture(event.pointerId);
+      capturePointer(board, event.pointerId);
       gesture.current = { kind: 'create', x0: world.x, y0: world.y };
       setCreating({ x0: world.x, y0: world.y, x1: world.x, y1: world.y });
       return;
     }
     if (tool === 'text') {
-      addNode({ x: world.x - 60, y: world.y - 30, w: 210, h: 96, title: 'Текст', icon: '✳', tone: 'sky', kind: 'quote', bullets: ['Новая мысль'] });
+      const node = addNode({
+        x: world.x - 110,
+        y: world.y - 36,
+        w: 240,
+        h: 84,
+        title: 'Текст',
+        icon: '',
+        tone: 'sky',
+        kind: 'plain',
+        bullets: [],
+        text: '',
+      });
+      setEditingId(node.id);
       setTool('select');
       return;
     }
@@ -483,7 +542,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     setSelection([]);
     setEditingId(null);
     if (tool === 'select') {
-      board.setPointerCapture(event.pointerId);
+      capturePointer(board, event.pointerId);
       gesture.current = { kind: 'marquee', x0: world.x, y0: world.y, additive: event.shiftKey };
       setMarquee({ x0: world.x, y0: world.y, x1: world.x, y1: world.y });
     }
@@ -493,6 +552,12 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     const g = gesture.current;
     if (!g) return;
     const world = toWorld(event.clientX, event.clientY);
+
+    if (g.kind === 'draw') {
+      g.points.push(world.x, world.y);
+      setDraftStroke({ id: g.id, points: [...g.points], color: penColor, width: 3 });
+      return;
+    }
 
     if (g.kind === 'pan') {
       markFitted();
@@ -543,13 +608,32 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     gesture.current = null;
     if (!g) return;
 
+    if (g.kind === 'draw') {
+      const points = [...g.points];
+      if (points.length >= 4) {
+        mutateCanvas(canvas.id, (c) => ({
+          ...c,
+          strokes: [
+            ...(c.strokes ?? []),
+            { id: g.id, points, color: penColor, width: 3, rev: Date.now() },
+          ],
+        }));
+      }
+      setDraftStroke(null);
+      return;
+    }
+
     if (g.kind === 'node' && dragPositions) {
       const positions = dragPositions;
       mutateCanvas(
         canvas.id,
         (c) => ({
           ...c,
-          nodes: c.nodes.map((n) => (positions[n.id] ? { ...n, x: positions[n.id].x, y: positions[n.id].y } : n)),
+          nodes: c.nodes.map((n) =>
+            positions[n.id]
+              ? { ...n, x: positions[n.id].x, y: positions[n.id].y, rev: Date.now() }
+              : n,
+          ),
         }),
         { history: false },
       );
@@ -561,7 +645,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       const { id, w, h } = resizeSize;
       mutateCanvas(
         canvas.id,
-        (c) => ({ ...c, nodes: c.nodes.map((n) => (n.id === id ? { ...n, w, h } : n)) }),
+        (c) => ({ ...c, nodes: c.nodes.map((n) => (n.id === id ? { ...n, w, h, rev: Date.now() } : n)) }),
         { history: false },
       );
       setResizeSize(null);
@@ -611,7 +695,19 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     const target = event.target as HTMLElement;
     if (target.closest('[data-node-id]')) return;
     const world = toWorld(event.clientX, event.clientY);
-    addNode({ x: world.x - 116, y: world.y - 60, title: 'Новая идея', icon: '✨', tone: 'emerald', kind: 'note', bullets: ['Опиши мысль'] });
+    const node = addNode({
+      x: world.x - 110,
+      y: world.y - 34,
+      w: 240,
+      h: 80,
+      title: 'Текст',
+      icon: '',
+      tone: 'violet',
+      kind: 'plain',
+      bullets: [],
+      text: '',
+    });
+    setEditingId(node.id);
   };
 
   useEffect(() => {
@@ -649,6 +745,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       if (key === 'v') setTool('select');
       else if (key === 'r') setTool('create');
       else if (key === 't') setTool('text');
+      else if (key === 'p') setTool('pen');
       else if (key === 'c') setTool('connect');
       else if (key === 'e') setTool('eraser');
       else if (key === 'm') magicLayout();
@@ -753,6 +850,20 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               <Icon name={item.icon} size={16} />
             </button>
           ))}
+          {tool === 'pen' && (
+            <>
+              <span className="sep" />
+              {PEN_COLORS.map((color) => (
+                <button
+                  key={color}
+                  className={`pen-color${penColor === color ? ' active' : ''}`}
+                  style={{ background: color }}
+                  title="Цвет пера"
+                  onClick={() => setPenColor(color)}
+                />
+              ))}
+            </>
+          )}
           <span className="sep" />
           <button className="tool" title="Дублировать узел" onClick={() => {
             const node = selectedNode;
@@ -806,7 +917,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
 
       <div
         ref={boardRef}
-        className={`board${canvas.grid ? ' dots' : ''}${spacePressed ? ' tool-hand' : ''}${tool === 'create' || tool === 'text' ? ' tool-create' : ''}${tool === 'connect' ? ' tool-connect' : ''}`}
+        className={`board${spacePressed ? ' tool-hand' : ''}${tool === 'create' || tool === 'text' ? ' tool-create' : ''}${tool === 'connect' ? ' tool-connect' : ''}${tool === 'pen' ? ' tool-pen' : ''}`}
         style={
           {
             '--grid-size': `${24 * view.zoom}px`,
@@ -824,6 +935,27 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
           className="board-world"
           style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
         >
+          <svg
+            className={`board-strokes${tool === 'eraser' ? ' erasable' : ''}`}
+            style={{ left: svgBox.minX, top: svgBox.minY }}
+            width={svgBox.w}
+            height={svgBox.h}
+            viewBox={`${svgBox.minX} ${svgBox.minY} ${svgBox.w} ${svgBox.h}`}
+          >
+            {[...strokes, ...(draftStroke ? [draftStroke] : [])].map((stroke) => (
+              <polyline
+                key={stroke.id}
+                data-stroke-id={stroke.id}
+                points={toPointList(stroke.points)}
+                fill="none"
+                stroke={stroke.color}
+                strokeWidth={stroke.width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+          </svg>
+
           <svg
             className="board-edges"
             style={{ left: svgBox.minX, top: svgBox.minY }}
@@ -897,7 +1029,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
                 const board = boardRef.current;
                 if (!board) return;
                 const world = toWorld(event.clientX, event.clientY);
-                board.setPointerCapture(event.pointerId);
+                capturePointer(board, event.pointerId);
                 gesture.current = { kind: 'link', from: node.id };
                 setLinkTo({ from: node.id, x: world.x, y: world.y });
               }}
@@ -905,7 +1037,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
                 event.stopPropagation();
                 const board = boardRef.current;
                 if (!board) return;
-                board.setPointerCapture(event.pointerId);
+                capturePointer(board, event.pointerId);
                 pushHistory();
                 gesture.current = {
                   kind: 'resize',
@@ -1024,7 +1156,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         </button>
 
         <div className="canvas-hint">
-          Двойной клик — новый узел · протяни от точки на узле — связь · Ctrl + колесо — масштаб · пробел + перетаскивание — панорама
+          Двойной клик — текст · P — рисование от руки · протяни от точки на узле — связь · Ctrl + колесо — масштаб · пробел — панорама
         </div>
       </div>
     </div>
