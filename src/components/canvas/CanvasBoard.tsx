@@ -140,8 +140,15 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   const [spacePressed, setSpacePressed] = useState(false);
   const [penColor, setPenColor] = useState(PEN_COLORS[0]);
   const [draftStroke, setDraftStroke] = useState<Stroke | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
 
   const strokes = canvas.strokes ?? [];
+
+  // Полноэкранный режим: канвас занимает всю страницу, панели скрываются.
+  useEffect(() => {
+    document.documentElement.classList.toggle('canvas-focus', focusMode);
+    return () => document.documentElement.classList.remove('canvas-focus');
+  }, [focusMode]);
 
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -365,6 +372,16 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     });
     markFitted();
   }, [markFitted]);
+
+  // При выходе на всю страницу размеры холста меняются — пересчитываем вписывание.
+  const fitRef = useRef(fitToView);
+  fitRef.current = fitToView;
+
+  useEffect(() => {
+    if (!focusMode) return;
+    const timer = window.setTimeout(() => fitRef.current(), 280);
+    return () => window.clearTimeout(timer);
+  }, [focusMode]);
 
   const zoomTo = useCallback(
     (next: number) => {
@@ -747,6 +764,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       else if (key === 't') setTool('text');
       else if (key === 'p') setTool('pen');
       else if (key === 'c') setTool('connect');
+      else if (key === 'f') setFocusMode((value) => !value);
       else if (key === 'e') setTool('eraser');
       else if (key === 'm') magicLayout();
     };
@@ -850,6 +868,13 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               <Icon name={item.icon} size={16} />
             </button>
           ))}
+          <button
+            className={`tool${focusMode ? ' active' : ''}`}
+            title={focusMode ? 'Выйти из режима на всю страницу · F' : 'Канвас на всю страницу · F'}
+            onClick={() => setFocusMode((value) => !value)}
+          >
+            <Icon name={focusMode ? 'minimize' : 'maximize'} size={16} />
+          </button>
           {tool === 'pen' && (
             <>
               <span className="sep" />

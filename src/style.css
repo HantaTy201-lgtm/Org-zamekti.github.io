@@ -10,6 +10,29 @@
   --panel-solid: #16121f;
   --card: rgba(31, 26, 47, 0.72);
   --card-hover: rgba(38, 32, 57, 0.85);
+  --ov-03: rgba(255, 255, 255, 0.03);
+  --ov-035: rgba(255, 255, 255, 0.035);
+  --ov-04: rgba(255, 255, 255, 0.04);
+  --ov-045: rgba(255, 255, 255, 0.045);
+  --ov-05: rgba(255, 255, 255, 0.05);
+  --ov-06: rgba(255, 255, 255, 0.06);
+  --ov-07: rgba(255, 255, 255, 0.07);
+  --ov-075: rgba(255, 255, 255, 0.075);
+  --ov-08: rgba(255, 255, 255, 0.08);
+  --ov-10: rgba(255, 255, 255, 0.1);
+  --ov-12: rgba(255, 255, 255, 0.12);
+  --ov-13: rgba(255, 255, 255, 0.13);
+  --ov-20: rgba(255, 255, 255, 0.2);
+  --ov-28: rgba(255, 255, 255, 0.28);
+  --surface-1: rgba(16, 13, 26, 0.55);
+  --surface-2: rgba(20, 16, 32, 0.85);
+  --surface-3: rgba(16, 13, 26, 0.9);
+  --card-inner: rgba(28, 24, 42, 0.92);
+  --field-bg: rgba(0, 0, 0, 0.25);
+  --board-bg: #0c0916;
+  --scrim: rgba(6, 4, 12, 0.62);
+  --chrome: #150f22;
+  --chrome-shadow: 0 10px 26px rgba(6, 4, 12, 0.34);
   --line: var(--ov-07);
   --line-strong: var(--ov-13);
   --txt: #ece9f6;
@@ -106,9 +129,9 @@ textarea {
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   background:
-    radial-gradient(900px 520px at 6% -12%, rgba(124, 92, 255, 0.16), transparent 62%),
-    radial-gradient(760px 480px at 96% 4%, rgba(52, 211, 153, 0.07), transparent 60%),
-    linear-gradient(180deg, #0d0a16 0%, #08060d 100%);
+    radial-gradient(900px 520px at 6% -12%, rgba(124, 92, 255, 0.2), transparent 62%),
+    radial-gradient(700px 420px at 98% 2%, rgba(52, 211, 153, 0.05), transparent 62%),
+    linear-gradient(180deg, #0b0813 0%, #07050c 100%);
   transition: grid-template-columns 0.18s ease;
 }
 
@@ -122,8 +145,8 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--line);
-  background: var(--surface-1);
+  border-right: 1px solid var(--line-strong);
+  background: var(--chrome);
   backdrop-filter: blur(14px);
 }
 
@@ -131,7 +154,9 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 16px 14px;
+  padding: 16px 16px 15px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
 
 .brand-mark {
@@ -150,16 +175,17 @@ textarea {
   padding: 4px 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 11px;
   width: 100%;
-  padding: 9px 10px;
-  border-radius: var(--radius-sm);
+  padding: 10px 11px;
+  border-radius: 10px;
   color: var(--txt-2);
   font-size: 13.5px;
   text-align: left;
@@ -173,8 +199,20 @@ textarea {
 
 .nav-item.active {
   background: var(--violet-soft);
-  color: #f2efff;
-  box-shadow: inset 0 0 0 1px rgba(124, 92, 255, 0.22);
+  color: var(--txt);
+  box-shadow: inset 0 0 0 1px rgba(124, 92, 255, 0.3);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--violet);
 }
 
 .nav-item .badge {
@@ -184,8 +222,8 @@ textarea {
 }
 
 .sidebar-section {
-  margin-top: 18px;
-  padding: 0 16px 6px;
+  margin-top: 24px;
+  padding: 0 16px 8px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.09em;
@@ -205,8 +243,8 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  border-radius: 10px;
   color: var(--txt-2);
   font-size: 13.5px;
   cursor: pointer;
@@ -252,10 +290,10 @@ textarea {
 .sidebar-foot {
   margin-top: auto;
   border-top: 1px solid var(--line);
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .user-chip {
@@ -330,14 +368,17 @@ textarea {
 }
 
 .topbar {
+  position: relative;
+  z-index: 6;
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 48px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-1);
+  height: 54px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--chrome);
   backdrop-filter: blur(14px);
+  box-shadow: var(--chrome-shadow);
 }
 
 .tabstrip {
@@ -357,8 +398,8 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px 6px 10px;
-  border-radius: var(--radius-xs);
+  padding: 7px 9px 7px 11px;
+  border-radius: 9px;
   color: var(--txt-2);
   font-size: 13px;
   white-space: nowrap;
@@ -371,8 +412,8 @@ textarea {
 }
 
 .tab.active {
-  background: var(--ov-07);
-  border-color: var(--line-strong);
+  background: var(--violet-soft);
+  border-color: rgba(124, 92, 255, 0.34);
   color: var(--txt);
 }
 
@@ -623,7 +664,7 @@ textarea {
 
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
 }
@@ -675,8 +716,8 @@ textarea {
 /* ---------- context panel ---------- */
 
 .panel {
-  border-left: 1px solid var(--line);
-  background: var(--surface-1);
+  border-left: 1px solid var(--line-strong);
+  background: var(--chrome);
   backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
@@ -1186,6 +1227,8 @@ textarea {
   --field-bg: rgba(24, 17, 51, 0.06);
   --board-bg: #f7f5fd;
   --scrim: rgba(30, 22, 60, 0.28);
+  --chrome: #ffffff;
+  --chrome-shadow: 0 10px 26px rgba(38, 28, 74, 0.07);
   --line: rgba(24, 17, 51, 0.1);
   --line-strong: rgba(24, 17, 51, 0.18);
   color-scheme: light;
@@ -1193,9 +1236,9 @@ textarea {
 
 :root[data-theme='light'] .app {
   background:
-    radial-gradient(900px 520px at 6% -12%, rgba(124, 92, 255, 0.12), transparent 62%),
-    radial-gradient(760px 480px at 96% 4%, rgba(52, 211, 153, 0.1), transparent 60%),
-    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+    radial-gradient(900px 520px at 6% -12%, rgba(124, 92, 255, 0.14), transparent 62%),
+    radial-gradient(700px 420px at 98% 2%, rgba(52, 211, 153, 0.07), transparent 62%),
+    linear-gradient(180deg, #ece7f8 0%, #f6f4fc 100%);
 }
 
 :root[data-theme='light'] .node-title,

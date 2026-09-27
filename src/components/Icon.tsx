@@ -133,6 +133,7 @@ const P: Record<string, ReactNode> = {
     </>
   ),
   maximize: <path d="M8 3H4.5A1.5 1.5 0 0 0 3 4.5V8m13-5h3.5A1.5 1.5 0 0 1 21 4.5V8M8 21H4.5A1.5 1.5 0 0 1 3 19.5V16m18 0v3.5a1.5 1.5 0 0 1-1.5 1.5H16" />,
+  minimize: <path d="M9 3v4.5A1.5 1.5 0 0 1 7.5 9H3m18 0h-4.5A1.5 1.5 0 0 1 15 7.5V3M15 21v-4.5a1.5 1.5 0 0 1 1.5-1.5H21M3 15h4.5A1.5 1.5 0 0 1 9 16.5V21" />,
   cursor: <path d="M5.5 3.5 19 11l-5.6 1.6L11 18.5z" />,
   square: <rect x="4" y="4" width="16" height="16" rx="2.5" />,
   type: <path d="M5 6.5V5h14v1.5M12 5v14M9 19h6" />,
