@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { Icon, OrgMark } from '../Icon';
 import type { CanvasNode } from '../../types';
@@ -45,6 +46,19 @@ export function NodeCard({
   onOpenNote,
 }: Props) {
   const isCenter = node.kind === 'text';
+
+  // Отдельный фокус для текстового узла: autoFocus ненадёжен при перерисовке,
+  // из-за чего в новый узел нельзя было печатать.
+  const plainInput = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (!editing || node.kind !== 'plain') return;
+    const element = plainInput.current;
+    if (!element) return;
+    element.focus();
+    const end = element.value.length;
+    element.setSelectionRange(end, end);
+  }, [editing, node.kind]);
 
   const head = editing ? (
     <div className="node-head">
@@ -258,8 +272,8 @@ export function NodeCard({
       >
         {editing ? (
           <textarea
+            ref={plainInput}
             className="node-plain-input"
-            autoFocus
             placeholder="Введи текст…"
             value={node.text ?? ''}
             onChange={(event) => onPatch(node.id, { text: event.target.value })}

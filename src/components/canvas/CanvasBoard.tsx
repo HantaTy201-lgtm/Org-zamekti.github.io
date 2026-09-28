@@ -141,6 +141,10 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   const [penColor, setPenColor] = useState(PEN_COLORS[0]);
   const [draftStroke, setDraftStroke] = useState<Stroke | null>(null);
   const [focusMode, setFocusMode] = useState(false);
+  // Захват указателя переадресует click/dblclick самому холсту, поэтому двойной клик
+  // по узлу определяем вручную по двум нажатиям подряд.
+  const lastNodePress = useRef<{ id: Id; at: number } | null>(null);
+  const lastDownOnNode = useRef<Id | null>(null);
 
   const strokes = canvas.strokes ?? [];
 
@@ -447,6 +451,29 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     if (event.button !== 0) return;
     if (target.closest('input, textarea')) return;
 
+    // Двойной клик по узлу открывает редактирование. Событие dblclick сюда не доходит:
+    // после setPointerCapture браузер адресует его холсту, а не карточке.
+    const pressedNodeEl = target.closest('[data-node-id]') as HTMLElement | null;
+    const pressedNodeId = (pressedNodeEl?.dataset.nodeId ?? null) as Id | null;
+    lastDownOnNode.current = pressedNodeId;
+
+    if (pressedNodeId && (tool === 'select' || tool === 'eraser')) {
+      const now = Date.now();
+      const previous = lastNodePress.current;
+      if (previous && previous.id === pressedNodeId && now - previous.at < 450) {
+        lastNodePress.current = null;
+        gesture.current = null;
+        if (tool === 'select') {
+          setSelection([pressedNodeId]);
+          setEditingId(pressedNodeId);
+        }
+        return;
+      }
+      lastNodePress.current = { id: pressedNodeId, at: now };
+    } else {
+      lastNodePress.current = null;
+    }
+
     if (tool === 'eraser') {
       const strokeEl = target.closest('[data-stroke-id]') as HTMLElement | null;
       if (strokeEl) {
@@ -710,7 +737,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
 
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
-    if (target.closest('[data-node-id]')) return;
+    if (lastDownOnNode.current || target.closest('[data-node-id]')) return;
     const world = toWorld(event.clientX, event.clientY);
     const node = addNode({
       x: world.x - 110,
