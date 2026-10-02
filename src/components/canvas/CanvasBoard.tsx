@@ -121,6 +121,9 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     createNote,
     openTab,
     toast,
+    room,
+    remoteCursors,
+    updateMyCursor,
   } = useStore();
   const { setCanvasFocus, focusRequest } = useSelection();
 
@@ -593,6 +596,10 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (room) {
+      const worldPos = toWorld(event.clientX, event.clientY);
+      updateMyCursor({ x: Math.round(worldPos.x), y: Math.round(worldPos.y), canvasId: canvas.id });
+    }
     const g = gesture.current;
     if (!g) return;
     const world = toWorld(event.clientX, event.clientY);
@@ -1128,6 +1135,9 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onPointerLeave={() => {
+          if (room) updateMyCursor(null);
+        }}
         onDoubleClick={onDoubleClick}
         onDragOver={(event) => {
           event.preventDefault();
@@ -1299,6 +1309,52 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               onOpenNote={(noteId) => openTab('note', noteId)}
             />
           ))}
+
+          {remoteCursors
+            .filter((c) => c.canvasId === canvas.id)
+            .map((c) => (
+              <div
+                key={c.id}
+                className="remote-cursor"
+                style={{
+                  position: 'absolute',
+                  left: c.x,
+                  top: c.y,
+                  pointerEvents: 'none',
+                  zIndex: 400,
+                  transform: 'translate(-2px, -2px)',
+                  transition: 'left 0.05s ease-out, top 0.05s ease-out',
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M5.65 2.15C5.3 1.8 4.7 2.05 4.7 2.55V21.45C4.7 21.95 5.3 22.2 5.65 21.85L10.9 16.6H19.55C20.05 16.6 20.3 16 19.95 15.65L5.65 2.15Z"
+                    fill={c.color}
+                    stroke="#000000"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 14,
+                    top: 14,
+                    padding: '2px 7px',
+                    borderRadius: 4,
+                    background: c.color,
+                    color: '#ffffff',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {c.name}
+                </div>
+              </div>
+            ))}
         </div>
 
         {marquee && <div className="marquee" style={rectStyle(marquee.x0, marquee.y0, marquee.x1, marquee.y1)} />}

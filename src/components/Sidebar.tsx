@@ -69,6 +69,7 @@ export function Sidebar() {
           alt="Org"
           className="brand-logo-img"
         />
+        <span className="brand-name">Org</span>
       </div>
 
       <nav className="sidebar-nav">

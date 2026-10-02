@@ -79,16 +79,18 @@ export function TopBar({ panelOpen, onTogglePanel, onToggleSidebar }: Props) {
           <kbd>Ctrl K</kbd>
         </button>
         <button
-          className="icon-btn collab-btn"
+          className={`icon-btn collab-btn${collabStatus !== 'off' ? ' in-room' : ''}`}
           title={
             collabStatus === 'off'
               ? 'Совместная работа: создать общую комнату'
-              : `В сети: ${peers.length + 1} · нажми, чтобы скопировать ссылку`
+              : `В сети: ${peers.length + 1} (${ws.user.name}${peers.length ? ', ' + peers.map((p) => p.name).join(', ') : ''}) · нажми, чтобы скопировать ссылку`
           }
           onClick={() => (collabStatus === 'off' ? startSharing() : copyShareLink())}
         >
           <span className={`collab-dot ${collabStatus}`} />
-          {collabStatus !== 'off' && <span style={{ fontSize: 12 }}>{peers.length + 1}</span>}
+          {collabStatus !== 'off' && (
+            <span style={{ fontSize: 12, fontWeight: 600 }}>{peers.length + 1}</span>
+          )}
         </button>
         <button className="icon-btn" title="Граф связей" onClick={() => openTab('graph')}>
           <Icon name="grid" size={17} />

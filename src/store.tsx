@@ -36,8 +36,26 @@ export interface Peer {
   color: string;
 }
 
-// Публичные сигнальные серверы y-webrtc: соединяют браузеры напрямую, без своего бэкенда.
-const SIGNALING = ['wss://signaling.yjs.dev', 'wss://y-webrtc-eu.fly.dev'];
+export interface RemoteCursor {
+  id: number;
+  name: string;
+  color: string;
+  x: number;
+  y: number;
+  canvasId: string;
+}
+
+// Проверенные публичные сигнальные серверы y-webrtc и STUN-серверы
+const SIGNALING = [
+  'wss://y-webrtc.fly.dev',
+  'wss://y-webrtc-signaling.fly.dev',
+  'wss://signaling.fly.dev',
+];
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:global.stun.twilio.com:3478' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+];
 const SHARED_KEYS = ['notes', 'canvases', 'tasks', 'spaces'] as const;
 const MEMBER_COLORS = ['#7c5cff', '#34d399', '#f5b544', '#f472b6', '#5b9dff', '#fb923c'];
 
@@ -160,6 +178,8 @@ export interface StoreValue {
   deleteSpace: (id: Id) => void;
   collabStatus: CollabStatus;
   peers: Peer[];
+  remoteCursors: RemoteCursor[];
+  updateMyCursor: (cursor: { x: number; y: number; canvasId: string } | null) => void;
   room: string;
   shareLink: string;
   startSharing: () => void;
@@ -302,7 +322,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setTheme = useCallback((theme: 'dark' | 'light') => {
-    setWs((prev) => ({ ...prev, theme }));
+    document.documentElement.dataset.theme = theme;
+    setWs((prev) => {
+      const next = { ...prev, theme };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   }, []);
 
   const deleteSpace = useCallback((id: Id) => {
@@ -541,23 +568,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [room, setRoom] = useState(readRoomParam);
   const [collabStatus, setCollabStatus] = useState<CollabStatus>(room ? 'connecting' : 'off');
   const [peers, setPeers] = useState<Peer[]>([]);
+  const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
+  const providerRef = useRef<WebrtcProvider | null>(null);
+  const isCreatorRef = useRef(false);
   const ydocRef = useRef<Y.Doc | null>(null);
   const applyingRemote = useRef(false);
   const roomReady = useRef(false);
   const myColor = useRef(MEMBER_COLORS[Math.floor(Math.random() * MEMBER_COLORS.length)]);
 
+  const updateMyCursor = useCallback((cursor: { x: number; y: number; canvasId: string } | null) => {
+    const awareness = providerRef.current?.awareness;
+    if (!awareness) return;
+    awareness.setLocalStateField('cursor', cursor);
+  }, []);
+
   useEffect(() => {
     if (!room) {
       setCollabStatus('off');
       setPeers([]);
+      setRemoteCursors([]);
       return;
     }
 
     setCollabStatus('connecting');
     roomReady.current = false;
     const doc = new Y.Doc();
-    const provider = new WebrtcProvider(`org-${room}`, doc, { signaling: SIGNALING });
+    const provider = new WebrtcProvider(`org-${room}`, doc, {
+      signaling: SIGNALING,
+      peerOpts: {
+        config: {
+          iceServers: ICE_SERVERS,
+        },
+      },
+    });
     ydocRef.current = doc;
+    providerRef.current = provider;
 
     const maps = SHARED_KEYS.map((key) => doc.getMap<Record<string, unknown>>(key));
     const meta = doc.getMap<unknown>('meta');
@@ -573,6 +618,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           else if (key === 'tasks') next.tasks = incoming as unknown as Task[];
           else next.spaces = incoming as unknown as Space[];
         });
+
+        // Сохраняем тему текущего пользователя (тема не перезаписывается комнатой)
+        next.theme = prev.theme;
+
+        // Автоматически открываем общий канвас или проверяем валидность активных вкладок
+        if (next.canvases.length > 0) {
+          const canvasIds = new Set(next.canvases.map((c) => c.id));
+          const urlCanvas = new URLSearchParams(window.location.search).get('canvas');
+          const targetCanvasId = urlCanvas && canvasIds.has(urlCanvas) ? urlCanvas : next.canvases[0].id;
+
+          const currentTab = next.tabs.find((t) => t.id === next.activeTabId);
+          if (currentTab && currentTab.kind === 'canvas') {
+            if (!currentTab.refId || !canvasIds.has(currentTab.refId)) {
+              currentTab.refId = targetCanvasId;
+              currentTab.title = tabTitle('canvas', targetCanvasId, next);
+            }
+          } else if (urlCanvas && canvasIds.has(urlCanvas)) {
+            const existingTab = next.tabs.find((t) => t.kind === 'canvas' && t.refId === urlCanvas);
+            if (existingTab) {
+              next.activeTabId = existingTab.id;
+            } else {
+              const newTab: Tab = {
+                id: uid('tab'),
+                kind: 'canvas',
+                refId: urlCanvas,
+                title: tabTitle('canvas', urlCanvas, next),
+              };
+              next.tabs.push(newTab);
+              next.activeTabId = newTab.id;
+            }
+          }
+        }
+
         return next;
       });
       window.setTimeout(() => {
@@ -580,15 +658,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }, 0);
     };
 
-    // Первый участник наполняет комнату своим пространством, остальные подхватывают общее,
-    // чтобы личные демо-данные не смешивались с чужими.
     const openRoom = () => {
       if (roomReady.current) return;
       roomReady.current = true;
       const hasContent = maps.some((map) => map.size > 0) || meta.get('seeded') === true;
       if (hasContent) {
         adoptRoom();
-      } else {
+      } else if (isCreatorRef.current) {
+        // Создатель комнаты сразу наполняет её данными
         meta.set('seeded', true);
         doc.transact(() => {
           SHARED_KEYS.forEach((key, index) => {
@@ -600,6 +677,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Если текущий клиент создал комнату через кнопку, сразу наполняем Yjs документ
+    if (isCreatorRef.current) {
+      openRoom();
+    }
+
     const applyRemote = () => {
       if (!roomReady.current) return;
       adoptRoom();
@@ -608,18 +690,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     maps.forEach((map) => map.observe(applyRemote));
 
     const awareness = provider.awareness;
-    const syncPeers = () => {
+    const syncAwareness = () => {
       const list: Peer[] = [];
+      const cursors: RemoteCursor[] = [];
       awareness.getStates().forEach((state, clientId) => {
         if (clientId === doc.clientID) return;
         const user = state.user as { name?: string; color?: string } | undefined;
+        const cursor = state.cursor as { x: number; y: number; canvasId: string } | undefined;
+        const peerName = user?.name ?? 'Гость';
+        const peerColor = user?.color ?? MEMBER_COLORS[0];
         list.push({
           id: clientId,
-          name: user?.name ?? 'Гость',
-          color: user?.color ?? MEMBER_COLORS[0],
+          name: peerName,
+          color: peerColor,
         });
+        if (cursor && typeof cursor.x === 'number' && typeof cursor.y === 'number') {
+          cursors.push({
+            id: clientId,
+            name: peerName,
+            color: peerColor,
+            x: cursor.x,
+            y: cursor.y,
+            canvasId: cursor.canvasId,
+          });
+        }
       });
       setPeers(list);
+      setRemoteCursors(cursors);
       setCollabStatus(list.length ? 'online' : roomReady.current ? 'online' : 'connecting');
     };
 
@@ -627,30 +724,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       name: wsRef.current.user.name,
       color: myColor.current,
     });
-    awareness.on('change', syncPeers);
-    provider.on('peers', syncPeers);
+    awareness.on('change', syncAwareness);
+    provider.on('peers', syncAwareness);
     provider.on('synced', ({ synced }: { synced: boolean }) => {
       if (synced) {
         openRoom();
-        syncPeers();
+        syncAwareness();
       }
     });
-    // Если собеседников нет, сигнальный сервер может не прислать synced — открываем комнату сами.
+
     const fallback = window.setTimeout(() => {
       openRoom();
-      syncPeers();
-    }, 2500);
+      syncAwareness();
+    }, 1500);
 
     return () => {
       window.clearTimeout(fallback);
-      awareness.off('change', syncPeers);
+      awareness.off('change', syncAwareness);
       maps.forEach((map) => map.unobserve(applyRemote));
       provider.destroy();
       doc.destroy();
       ydocRef.current = null;
+      providerRef.current = null;
       roomReady.current = false;
       setCollabStatus('off');
       setPeers([]);
+      setRemoteCursors([]);
     };
   }, [room]);
 
@@ -674,38 +773,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         });
       });
-    }, 250);
+    }, 80);
 
     return () => window.clearTimeout(timer);
   }, [room, ws.notes, ws.canvases, ws.tasks, ws.spaces]);
-
-  const shareLink = `${window.location.origin}${window.location.pathname}?room=${room}`;
-
-  const startSharing = useCallback(() => {
-    const params = new URLSearchParams(window.location.search);
-    params.set('room', Math.random().toString(36).slice(2, 10));
-    window.location.search = params.toString();
-  }, []);
-
-  const stopSharing = useCallback(() => {
-    const params = new URLSearchParams(window.location.search);
-    params.delete('room');
-    window.location.search = params.toString();
-  }, []);
-
-  const copyShareLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      toast('Ссылка скопирована — отправь её другу');
-    } catch {
-      toast('Не удалось скопировать, скопируй ссылку вручную');
-    }
-  }, [shareLink, toast]);
 
   const activeTab = useMemo(
     () => ws.tabs.find((t) => t.id === ws.activeTabId) ?? ws.tabs[0],
     [ws.tabs, ws.activeTabId],
   );
+
+  const shareLink = useMemo(() => {
+    if (!room) return '';
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set('room', room);
+    if (activeTab.kind === 'canvas' && activeTab.refId) {
+      url.searchParams.set('canvas', activeTab.refId);
+    }
+    return url.toString();
+  }, [room, activeTab]);
+
+  const startSharing = useCallback(() => {
+    isCreatorRef.current = true;
+    const newRoom = Math.random().toString(36).slice(2, 10);
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', newRoom);
+    if (activeTab.kind === 'canvas' && activeTab.refId) {
+      url.searchParams.set('canvas', activeTab.refId);
+    }
+    window.history.pushState({}, '', url.toString());
+    setRoom(newRoom);
+    try {
+      navigator.clipboard?.writeText(url.toString());
+      toast('Комната создана! Ссылка скопирована в буфер');
+    } catch {
+      toast('Комната создана!');
+    }
+  }, [activeTab, toast]);
+
+  const stopSharing = useCallback(() => {
+    isCreatorRef.current = false;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('room');
+    url.searchParams.delete('canvas');
+    window.history.pushState({}, '', url.toString());
+    setRoom('');
+    toast('Вы вышли из комнаты');
+  }, [toast]);
+
+  const copyShareLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      toast('Ссылка на комнату скопирована — отправь её другу');
+    } catch {
+      toast('Не удалось скопировать, скопируй ссылку вручную');
+    }
+  }, [shareLink, toast]);
 
   const value: StoreValue = {
     ws,
@@ -714,6 +837,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     deleteSpace,
     collabStatus,
     peers,
+    remoteCursors,
+    updateMyCursor,
     room,
     shareLink,
     startSharing,
