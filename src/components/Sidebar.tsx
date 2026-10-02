@@ -27,6 +27,8 @@ export function Sidebar() {
     importJson,
     resetDemo,
     toast,
+    theme,
+    setTheme,
   } = useStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -62,8 +64,11 @@ export function Sidebar() {
         title="На главную"
         onClick={() => openTab('home')}
       >
-        <OrgMark size={30} className="brand-mark" />
-        <span className="brand-name">Org</span>
+        <img
+          src={theme === 'light' ? './logo-light.png' : './logo-dark.png'}
+          alt="Org"
+          className="brand-logo-img"
+        />
       </div>
 
       <nav className="sidebar-nav">
@@ -202,6 +207,13 @@ export function Sidebar() {
           )}
         </div>
         <div className="sidebar-actions">
+          <button
+            className="icon-btn"
+            title={theme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на черную тему'}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} />
+          </button>
           <button className="icon-btn" title="Настройки" onClick={() => setSettingsOpen(true)}>
             <Icon name="settings" size={17} />
           </button>

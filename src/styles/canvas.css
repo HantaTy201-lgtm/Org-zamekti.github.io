@@ -541,31 +541,42 @@
   box-shadow: 0 0 0 2px var(--violet-soft), 0 0 0 3px var(--violet);
 }
 
+/* Text Node (Plain) - now clearly stands out as a card */
 .node.plain {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.node.plain:hover {
+  border-color: var(--line-active, rgba(255, 255, 255, 0.3));
 }
 
 .node.plain.selected {
   border-color: var(--violet);
-  background: var(--violet-soft);
+  box-shadow: 0 0 0 2px var(--violet-soft), var(--shadow);
 }
 
 .node-plain-input {
   width: 100%;
   height: 100%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   resize: none;
   font-size: 14px;
+  font-weight: 500;
   line-height: 1.5;
   color: var(--txt);
   background: none;
+  outline: none;
 }
 
 .node-plain-text {
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-size: 14px;
+  font-weight: 500;
   line-height: 1.5;
   color: var(--txt);
   white-space: pre-wrap;
@@ -576,6 +587,160 @@
 
 .node-plain-text.empty {
   color: var(--txt-3);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Sticker Node with Red Paperclip from photo */
+.node.sticker-node {
+  position: absolute;
+  padding: 22px 16px 14px;
+  border-radius: 4px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.node.sticker-node.selected {
+  outline: 2px solid var(--violet);
+  box-shadow: 0 0 0 3px var(--violet-soft), 0 14px 32px rgba(0, 0, 0, 0.36);
+}
+
+.sticker-clip-wrap {
+  position: absolute;
+  top: -14px;
+  right: 18px;
+  width: 24px;
+  height: 48px;
+  pointer-events: none;
+  z-index: 10;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+.sticker-clip-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.sticker-colors-bar {
+  position: absolute;
+  top: -42px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background: var(--chrome);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+  z-index: 20;
+}
+
+.sticker-color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+  padding: 0;
+}
+
+.sticker-color-dot:hover {
+  transform: scale(1.2);
+}
+
+.sticker-color-dot.active {
+  box-shadow: 0 0 0 2px var(--violet);
+  transform: scale(1.15);
+}
+
+.sticker-color-custom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  margin-left: 2px;
+}
+
+.sticker-color-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.color-wheel-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.sticker-textarea {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  outline: none;
+  resize: none;
+  font-size: 14.5px;
+  line-height: 1.5;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+/* Image Node */
+.node.image-node {
+  position: absolute;
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.node.image-node.selected {
+  border-color: var(--violet);
+  box-shadow: 0 0 0 2px var(--violet-soft), var(--shadow);
+}
+
+.node-image-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: calc(var(--radius-sm) - 4px);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.node-img-element {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.node-img-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--txt-3);
+  font-size: 12px;
 }
 /* РљР°РЅРІР°СЃ РЅР° РІСЃСЋ СЃС‚СЂР°РЅРёС†Сѓ: РїР°РЅРµР»Рё СЃРєСЂС‹С‚С‹, С‚СѓР»Р±Р°СЂ РІСЃРїР»С‹РІР°РµС‚ РїРѕРІРµСЂС… С…РѕР»СЃС‚Р° */
 :root.canvas-focus .app {

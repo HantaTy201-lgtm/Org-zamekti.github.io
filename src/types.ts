@@ -26,7 +26,7 @@ export interface Note {
   pinned?: boolean;
 }
 
-export type CanvasNodeKind = 'note' | 'checklist' | 'quote' | 'links' | 'text' | 'plain';
+export type CanvasNodeKind = 'note' | 'checklist' | 'quote' | 'links' | 'text' | 'plain' | 'image' | 'sticker';
 
 export interface NodeLink {
   id: Id;
@@ -49,6 +49,8 @@ export interface CanvasNode {
   links: NodeLink[];
   noteId?: Id;
   text?: string;
+  imageUrl?: string;
+  color?: string;
   rev?: number;
 }
 

@@ -3,13 +3,24 @@
 @import './styles/boards.css';
 
 :root {
-  --bg-0: #08060d;
-  --bg-1: #100d1a;
-  --bg-2: #16121f;
-  --panel: rgba(23, 19, 36, 0.72);
-  --panel-solid: #16121f;
-  --card: rgba(31, 26, 47, 0.72);
-  --card-hover: rgba(38, 32, 57, 0.85);
+  --bg-0: #000000;
+  --bg-1: #09090b;
+  --bg-2: #121215;
+  --panel: rgba(14, 14, 18, 0.94);
+  --panel-solid: #0d0d11;
+  --card: #121216;
+  --card-hover: #18181f;
+  --card-inner: #15151a;
+  --field-bg: rgba(255, 255, 255, 0.05);
+  --board-bg: #000000;
+  --scrim: rgba(0, 0, 0, 0.82);
+  --chrome: #09090c;
+  --chrome-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  --sidebar-bg: #09090c;
+  --sidebar-border: #222227;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --line-active: rgba(255, 255, 255, 0.35);
   --ov-03: rgba(255, 255, 255, 0.03);
   --ov-035: rgba(255, 255, 255, 0.035);
   --ov-04: rgba(255, 255, 255, 0.04);
@@ -24,23 +35,15 @@
   --ov-13: rgba(255, 255, 255, 0.13);
   --ov-20: rgba(255, 255, 255, 0.2);
   --ov-28: rgba(255, 255, 255, 0.28);
-  --surface-1: rgba(16, 13, 26, 0.55);
-  --surface-2: rgba(20, 16, 32, 0.85);
-  --surface-3: rgba(16, 13, 26, 0.9);
-  --card-inner: rgba(28, 24, 42, 0.92);
-  --field-bg: rgba(0, 0, 0, 0.25);
-  --board-bg: #0c0916;
-  --scrim: rgba(6, 4, 12, 0.62);
-  --chrome: #150f22;
-  --chrome-shadow: 0 10px 26px rgba(6, 4, 12, 0.34);
-  --line: var(--ov-07);
-  --line-strong: var(--ov-13);
-  --txt: #ece9f6;
-  --txt-2: #a49fba;
-  --txt-3: #706a88;
+  --surface-1: rgba(14, 14, 18, 0.8);
+  --surface-2: rgba(18, 18, 24, 0.95);
+  --surface-3: #111116;
+  --txt: #f4f4f5;
+  --txt-2: #a1a1aa;
+  --txt-3: #71717a;
   --violet: #7c5cff;
   --violet-2: #9b7dff;
-  --violet-soft: rgba(124, 92, 255, 0.16);
+  --violet-soft: rgba(124, 92, 255, 0.18);
   --emerald: #34d399;
   --amber: #f5b544;
   --sky: #5b9dff;
@@ -50,8 +53,8 @@
   --radius: 14px;
   --radius-sm: 10px;
   --radius-xs: 8px;
-  --shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
-  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.5);
   --sidebar-w: 250px;
   --panel-w: 372px;
   color-scheme: dark;
@@ -128,10 +131,7 @@ textarea {
   height: 100%;
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-  background:
-    radial-gradient(900px 520px at 6% -12%, rgba(124, 92, 255, 0.2), transparent 62%),
-    radial-gradient(700px 420px at 98% 2%, rgba(52, 211, 153, 0.05), transparent 62%),
-    linear-gradient(180deg, #0b0813 0%, #07050c 100%);
+  background: var(--bg-0);
   transition: grid-template-columns 0.18s ease;
 }
 
@@ -145,18 +145,34 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--line-strong);
-  background: var(--chrome);
-  backdrop-filter: blur(14px);
+  border-right: 1.5px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
+  box-shadow: 3px 0 20px rgba(0, 0, 0, 0.4);
+  z-index: 10;
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 16px 15px;
+  justify-content: flex-start;
+  padding: 14px 16px 14px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.brand-logo-img {
+  height: 38px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  display: block;
+  transition: transform 0.15s ease;
+}
+
+.brand-logo-img:hover {
+  transform: scale(1.03);
 }
 
 .brand-mark {
@@ -172,47 +188,44 @@ textarea {
 }
 
 .sidebar-nav {
-  padding: 4px 10px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+  margin: 0 10px 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--line);
+  border-radius: 12px;
 }
 
 .nav-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   width: 100%;
-  padding: 10px 11px;
-  border-radius: 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
   color: var(--txt-2);
   font-size: 13.5px;
+  font-weight: 500;
   text-align: left;
-  transition: background 0.14s ease, color 0.14s ease;
+  border: 1px solid transparent;
+  transition: all 0.14s ease;
 }
 
 .nav-item:hover {
-  background: var(--ov-045);
+  background: var(--card-hover);
   color: var(--txt);
+  border-color: var(--line);
 }
 
 .nav-item.active {
-  background: var(--violet-soft);
-  color: var(--txt);
-  box-shadow: inset 0 0 0 1px rgba(124, 92, 255, 0.3);
-}
-
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 18px;
-  border-radius: 0 3px 3px 0;
   background: var(--violet);
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 3px 12px rgba(124, 92, 255, 0.45);
+  border-color: transparent;
 }
 
 .nav-item .badge {
@@ -1190,55 +1203,88 @@ textarea {
 }
 
 :root[data-theme='light'] {
-  --bg-0: #f5f3fb;
+  --bg-0: #f4f4f6;
   --bg-1: #ffffff;
-  --bg-2: #efecf8;
-  --panel: rgba(255, 255, 255, 0.82);
+  --bg-2: #ececf0;
+  --panel: rgba(255, 255, 255, 0.95);
   --panel-solid: #ffffff;
-  --card: rgba(255, 255, 255, 0.86);
-  --card-hover: #ffffff;
-  --txt: #1b1630;
-  --txt-2: #57506e;
-  --txt-3: #8b849f;
+  --card: #ffffff;
+  --card-hover: #f8f8fa;
+  --card-inner: #f4f4f7;
+  --field-bg: #f0f0f4;
+  --board-bg: #f8f9fb;
+  --scrim: rgba(0, 0, 0, 0.35);
+  --chrome: #ffffff;
+  --chrome-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e4e4e7;
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+  --line-active: #a1a1aa;
+  --txt: #09090b;
+  --txt-2: #52525b;
+  --txt-3: #71717a;
   --violet: #6b4bf5;
   --violet-2: #5a37e6;
   --violet-soft: rgba(107, 75, 245, 0.12);
   --danger: #dc2626;
-  --shadow: 0 18px 44px rgba(38, 28, 74, 0.16);
-  --shadow-sm: 0 6px 18px rgba(38, 28, 74, 0.1);
-  --ov-03: rgba(24, 17, 51, 0.03);
-  --ov-035: rgba(24, 17, 51, 0.035);
-  --ov-04: rgba(24, 17, 51, 0.04);
-  --ov-045: rgba(24, 17, 51, 0.045);
-  --ov-05: rgba(24, 17, 51, 0.05);
-  --ov-06: rgba(24, 17, 51, 0.06);
-  --ov-07: rgba(24, 17, 51, 0.075);
-  --ov-075: rgba(24, 17, 51, 0.08);
-  --ov-08: rgba(24, 17, 51, 0.085);
-  --ov-10: rgba(24, 17, 51, 0.1);
-  --ov-12: rgba(24, 17, 51, 0.12);
-  --ov-13: rgba(24, 17, 51, 0.14);
-  --ov-20: rgba(24, 17, 51, 0.2);
-  --ov-28: rgba(24, 17, 51, 0.26);
-  --surface-1: rgba(255, 255, 255, 0.72);
+  --shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --ov-03: rgba(0, 0, 0, 0.03);
+  --ov-035: rgba(0, 0, 0, 0.035);
+  --ov-04: rgba(0, 0, 0, 0.04);
+  --ov-045: rgba(0, 0, 0, 0.045);
+  --ov-05: rgba(0, 0, 0, 0.05);
+  --ov-06: rgba(0, 0, 0, 0.06);
+  --ov-07: rgba(0, 0, 0, 0.07);
+  --ov-075: rgba(0, 0, 0, 0.075);
+  --ov-08: rgba(0, 0, 0, 0.08);
+  --ov-10: rgba(0, 0, 0, 0.1);
+  --ov-12: rgba(0, 0, 0, 0.12);
+  --ov-13: rgba(0, 0, 0, 0.14);
+  --ov-20: rgba(0, 0, 0, 0.2);
+  --ov-28: rgba(0, 0, 0, 0.26);
+  --surface-1: #ffffff;
   --surface-2: #ffffff;
   --surface-3: #ffffff;
-  --card-inner: #ffffff;
-  --field-bg: rgba(24, 17, 51, 0.06);
-  --board-bg: #f7f5fd;
-  --scrim: rgba(30, 22, 60, 0.28);
-  --chrome: #ffffff;
-  --chrome-shadow: 0 10px 26px rgba(38, 28, 74, 0.07);
-  --line: rgba(24, 17, 51, 0.1);
-  --line-strong: rgba(24, 17, 51, 0.18);
   color-scheme: light;
 }
 
 :root[data-theme='light'] .app {
-  background:
-    radial-gradient(900px 520px at 6% -12%, rgba(124, 92, 255, 0.14), transparent 62%),
-    radial-gradient(700px 420px at 98% 2%, rgba(52, 211, 153, 0.07), transparent 62%),
-    linear-gradient(180deg, #ece7f8 0%, #f6f4fc 100%);
+  background: #f4f4f6;
+}
+
+:root[data-theme='light'] .sidebar {
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme='light'] .sidebar-nav {
+  background: #f4f4f6;
+  border-color: #e4e4e7;
+}
+
+:root[data-theme='light'] .nav-item {
+  color: #52525b;
+}
+
+:root[data-theme='light'] .nav-item:hover {
+  background: #eaecee;
+  color: #09090b;
+}
+
+:root[data-theme='light'] .nav-item.active {
+  background: #18181b;
+  color: #ffffff !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme='light'] .board {
+  border-color: #d4d4d8;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.03), 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme='light'] .board.dots {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.14) 1.2px, transparent 1.2px);
 }
 
 :root[data-theme='light'] .node-title,

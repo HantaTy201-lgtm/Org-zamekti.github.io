@@ -29,6 +29,17 @@ const HANDLES: { side: HandleSide; style: CSSProperties }[] = [
   { side: 'r', style: { right: -6, top: '50%', transform: 'translateY(-50%)' } },
 ];
 
+const STICKER_COLORS = [
+  '#fef08a', // Yellow
+  '#fed7aa', // Peach / Orange
+  '#fbcfe8', // Pink
+  '#bbf7d0', // Green
+  '#bfdbfe', // Sky Blue
+  '#e9d5ff', // Purple
+  '#ffffff', // White
+  '#27272a', // Dark Slate
+];
+
 export function NodeCard({
   node,
   selected,
@@ -52,7 +63,7 @@ export function NodeCard({
   const plainInput = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    if (!editing || node.kind !== 'plain') return;
+    if (!editing || (node.kind !== 'plain' && node.kind !== 'sticker')) return;
     const element = plainInput.current;
     if (!element) return;
     element.focus();
@@ -257,6 +268,142 @@ export function NodeCard({
       </div>
     ))
   );
+
+  if (node.kind === 'sticker') {
+    const stickerColor = node.color || '#fef08a';
+    const isDark =
+      stickerColor === '#27272a' || stickerColor === '#18181b' || stickerColor === '#000000';
+    return (
+      <div
+        className={`node sticker-node${selected ? ' selected' : ''}${dragging ? ' dragging' : ''}`}
+        data-node-id={node.id}
+        style={{
+          left: node.x,
+          top: node.y,
+          width: node.w,
+          height: node.h,
+          backgroundColor: stickerColor,
+          color: isDark ? '#ffffff' : '#1c1917',
+        }}
+        onPointerDown={(event) => onPointerDown(event, node)}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          onStartEdit(node);
+        }}
+      >
+        <div className="sticker-clip-wrap" title="Канцелярская скрепка">
+          <svg className="sticker-clip-svg" viewBox="0 0 28 56" fill="none">
+            <path
+              d="M14 6 C 18 6, 22 10, 22 18 L 22 42 C 22 49, 17 52, 11 52 C 5 52, 2 48, 2 41 L 2 17 C 2 10, 6 6, 12 6 C 17 6, 19 10, 19 16 L 19 38 C 19 41, 16 43, 13 43 C 10 43, 8 41, 8 38 L 8 18"
+              stroke="#dc2626"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M13 8 C 16 8, 20 11, 20 18 L 20 40"
+              stroke="#f87171"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        {selected && (
+          <div
+            className="sticker-colors-bar"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {STICKER_COLORS.map((col) => (
+              <button
+                key={col}
+                className={`sticker-color-dot${(node.color || '#fef08a') === col ? ' active' : ''}`}
+                style={{ backgroundColor: col }}
+                title="Выбрать цвет стикера"
+                onClick={() => onPatch(node.id, { color: col })}
+              />
+            ))}
+            <label className="sticker-color-custom-btn" title="Выбрать любой цвет">
+              <input
+                type="color"
+                className="sticker-color-input"
+                value={node.color || '#fef08a'}
+                onChange={(e) => onPatch(node.id, { color: e.target.value })}
+              />
+              <span className="color-wheel-icon">🎨</span>
+            </label>
+          </div>
+        )}
+
+        <textarea
+          ref={editing ? plainInput : undefined}
+          className="sticker-textarea"
+          placeholder="Текст стикера…"
+          value={node.text ?? ''}
+          style={{ color: isDark ? '#ffffff' : '#1c1917' }}
+          onChange={(event) => onPatch(node.id, { text: event.target.value })}
+          onPointerDown={(event) => event.stopPropagation()}
+        />
+
+        {showHandles &&
+          HANDLES.map((handle) => (
+            <span
+              key={handle.side}
+              className="handle"
+              data-handle={handle.side}
+              style={handle.style}
+              onPointerDown={(event) => onHandleDown(event, node, handle.side)}
+            />
+          ))}
+
+        {selected && !editing && (
+          <span className="node-resize" onPointerDown={(event) => onResizeDown(event, node)} />
+        )}
+      </div>
+    );
+  }
+
+  if (node.kind === 'image') {
+    return (
+      <div
+        className={`node image-node${selected ? ' selected' : ''}${dragging ? ' dragging' : ''}`}
+        data-node-id={node.id}
+        style={{ left: node.x, top: node.y, width: node.w, height: node.h }}
+        onPointerDown={(event) => onPointerDown(event, node)}
+      >
+        <div className="node-image-container">
+          {node.imageUrl ? (
+            <img
+              src={node.imageUrl}
+              alt={node.title || 'Изображение'}
+              className="node-img-element"
+              draggable={false}
+            />
+          ) : (
+            <div className="node-img-empty">
+              <Icon name="image" size={30} />
+              <span>Нет фото</span>
+            </div>
+          )}
+        </div>
+
+        {showHandles &&
+          HANDLES.map((handle) => (
+            <span
+              key={handle.side}
+              className="handle"
+              data-handle={handle.side}
+              style={handle.style}
+              onPointerDown={(event) => onHandleDown(event, node, handle.side)}
+            />
+          ))}
+
+        {selected && (
+          <span className="node-resize" onPointerDown={(event) => onResizeDown(event, node)} />
+        )}
+      </div>
+    );
+  }
 
   if (node.kind === 'plain') {
     return (

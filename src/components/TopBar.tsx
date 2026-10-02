@@ -19,6 +19,8 @@ export function TopBar({ panelOpen, onTogglePanel, onToggleSidebar }: Props) {
     peers,
     startSharing,
     copyShareLink,
+    theme,
+    setTheme,
   } = useStore();
   const index = ws.tabs.findIndex((t) => t.id === activeTab.id);
 
@@ -90,6 +92,13 @@ export function TopBar({ panelOpen, onTogglePanel, onToggleSidebar }: Props) {
         </button>
         <button className="icon-btn" title="Граф связей" onClick={() => openTab('graph')}>
           <Icon name="grid" size={17} />
+        </button>
+        <button
+          className="icon-btn"
+          title={theme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на черную тему'}
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        >
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={17} />
         </button>
         <button
           className={`icon-btn${panelOpen ? ' active' : ''}`}

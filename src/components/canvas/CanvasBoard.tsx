@@ -856,11 +856,134 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   });
 
   const selectedNode = selection.length === 1 ? nodes.find((n) => n.id === selection[0]) : undefined;
-  const boardCenter = () => {
+  const boardCenter = useCallback(() => {
     const el = boardRef.current;
     if (!el) return { x: 0, y: 0 };
     return toWorld(el.clientWidth / 2, el.clientHeight / 2);
+  }, [toWorld]);
+
+  const imageUploadRef = useRef<HTMLInputElement>(null);
+
+  const createSticker = useCallback(() => {
+    const center = boardCenter();
+    addNode({
+      x: center.x - 110,
+      y: center.y - 110,
+      w: 220,
+      h: 220,
+      title: 'Стикер',
+      icon: '📌',
+      tone: 'amber',
+      kind: 'sticker',
+      color: '#fef08a',
+      text: '',
+      bullets: [],
+      items: [],
+      links: [],
+    });
+    toast('Стикер добавлен на холст');
+  }, [boardCenter, addNode, toast]);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+      const img = new Image();
+      img.onload = () => {
+        let w = img.naturalWidth || 320;
+        let h = img.naturalHeight || 240;
+        const maxSide = 400;
+        if (w > maxSide || h > maxSide) {
+          if (w > h) {
+            h = Math.round((h / w) * maxSide);
+            w = maxSide;
+          } else {
+            w = Math.round((w / h) * maxSide);
+            h = maxSide;
+          }
+        }
+        const center = boardCenter();
+        addNode({
+          x: center.x - w / 2,
+          y: center.y - h / 2,
+          w: Math.max(140, w),
+          h: Math.max(100, h),
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          icon: '🖼️',
+          tone: 'slate',
+          kind: 'image',
+          imageUrl: dataUrl,
+          bullets: [],
+          items: [],
+          links: [],
+        });
+        toast('Фото загружено на холст');
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
   };
+
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      if (isEditable(event.target)) return;
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          if (!blob) continue;
+          event.preventDefault();
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
+            if (!dataUrl) return;
+            const img = new Image();
+            img.onload = () => {
+              let w = img.naturalWidth || 320;
+              let h = img.naturalHeight || 240;
+              const maxSide = 400;
+              if (w > maxSide || h > maxSide) {
+                if (w > h) {
+                  h = Math.round((h / w) * maxSide);
+                  w = maxSide;
+                } else {
+                  w = Math.round((w / h) * maxSide);
+                  h = maxSide;
+                }
+              }
+              const center = boardCenter();
+              addNode({
+                x: center.x - w / 2,
+                y: center.y - h / 2,
+                w: Math.max(140, w),
+                h: Math.max(100, h),
+                title: 'Вставленное фото',
+                icon: '🖼️',
+                tone: 'slate',
+                kind: 'image',
+                imageUrl: dataUrl,
+                bullets: [],
+                items: [],
+                links: [],
+              });
+              toast('Изображение вставлено (Ctrl+V)');
+            };
+            img.src = dataUrl;
+          };
+          reader.readAsDataURL(blob);
+          break;
+        }
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [boardCenter, addNode, toast]);
 
   return (
     <div className="view canvas-view">
@@ -895,6 +1018,27 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               <Icon name={item.icon} size={16} />
             </button>
           ))}
+          <button
+            className="tool"
+            title="Создать стикер (с канцелярской скрепкой)"
+            onClick={createSticker}
+          >
+            <Icon name="sticker" size={16} />
+          </button>
+          <button
+            className="tool"
+            title="Загрузить фото (или Ctrl+V)"
+            onClick={() => imageUploadRef.current?.click()}
+          >
+            <Icon name="image" size={16} />
+          </button>
+          <input
+            ref={imageUploadRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleImageUpload}
+          />
           <button
             className={`tool${focusMode ? ' active' : ''}`}
             title={focusMode ? 'Выйти из режима на всю страницу · F' : 'Канвас на всю страницу · F'}
@@ -936,6 +1080,9 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               items: node.items.map((i) => ({ ...i, id: uid('ci') })),
               links: node.links.map((l) => ({ ...l, id: uid('nl') })),
               noteId: node.noteId,
+              text: node.text,
+              imageUrl: node.imageUrl,
+              color: node.color,
             });
           }}>
             <Icon name="copy" size={16} />
@@ -982,6 +1129,55 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onDoubleClick={onDoubleClick}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          const files = event.dataTransfer.files;
+          if (!files || files.length === 0) return;
+          const file = files[0];
+          if (!file.type.startsWith('image/')) return;
+          const dropWorld = toWorld(event.clientX, event.clientY);
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
+            if (!dataUrl) return;
+            const img = new Image();
+            img.onload = () => {
+              let w = img.naturalWidth || 320;
+              let h = img.naturalHeight || 240;
+              const maxSide = 400;
+              if (w > maxSide || h > maxSide) {
+                if (w > h) {
+                  h = Math.round((h / w) * maxSide);
+                  w = maxSide;
+                } else {
+                  w = Math.round((w / h) * maxSide);
+                  h = maxSide;
+                }
+              }
+              addNode({
+                x: dropWorld.x - w / 2,
+                y: dropWorld.y - h / 2,
+                w: Math.max(140, w),
+                h: Math.max(100, h),
+                title: file.name.replace(/\.[^/.]+$/, ''),
+                icon: '🖼️',
+                tone: 'slate',
+                kind: 'image',
+                imageUrl: dataUrl,
+                bullets: [],
+                items: [],
+                links: [],
+              });
+              toast('Фото добавлено на холст');
+            };
+            img.src = dataUrl;
+          };
+          reader.readAsDataURL(file);
+        }}
       >
         <div
           className="board-world"
