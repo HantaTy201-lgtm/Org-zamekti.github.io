@@ -58,7 +58,7 @@ const ICE_SERVERS = [
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
 const SHARED_KEYS = ['notes', 'canvases', 'tasks', 'spaces'] as const;
-const MEMBER_COLORS = ['#7c5cff', '#34d399', '#f5b544', '#f472b6', '#5b9dff', '#fb923c'];
+const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'];
 
 type SharedKey = (typeof SHARED_KEYS)[number];
 
@@ -705,17 +705,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       openRoom();
     }
 
+    let applyRemoteRaf: number | null = null;
     const applyRemote = (_event: any, tr: any) => {
       if (tr && tr.origin === 'local') return;
       if (!roomReady.current) {
         openRoom();
         return;
       }
-      adoptRoom();
+      if (applyRemoteRaf !== null) return;
+      applyRemoteRaf = requestAnimationFrame(() => {
+        applyRemoteRaf = null;
+        adoptRoom();
+      });
     };
 
     maps.forEach((map) => map.observe(applyRemote));
 
+    let awarenessThrottle: number | null = null;
     const syncAwareness = () => {
       const list: Peer[] = [];
       const cursors: RemoteCursor[] = [];
@@ -754,6 +760,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setCollabStatus(list.length > 0 || wsProvider.wsconnected ? 'online' : 'connecting');
     };
 
+    const throttledSyncAwareness = () => {
+      if (awarenessThrottle !== null) return;
+      awarenessThrottle = window.setTimeout(() => {
+        awarenessThrottle = null;
+        syncAwareness();
+      }, 35);
+    };
+
     const userState = {
       name: wsRef.current.user.name,
       color: myColor.current,
@@ -761,8 +775,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     wsProvider.awareness.setLocalStateField('user', userState);
     webrtcProvider.awareness.setLocalStateField('user', userState);
 
-    wsProvider.awareness.on('change', syncAwareness);
-    webrtcProvider.awareness.on('change', syncAwareness);
+    wsProvider.awareness.on('change', throttledSyncAwareness);
+    webrtcProvider.awareness.on('change', throttledSyncAwareness);
 
     wsProvider.on('status', (e: { status: string }) => {
       if (e.status === 'connected') {
@@ -792,8 +806,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     return () => {
       window.clearTimeout(fallback);
-      wsProvider.awareness.off('change', syncAwareness);
-      webrtcProvider.awareness.off('change', syncAwareness);
+      if (awarenessThrottle !== null) window.clearTimeout(awarenessThrottle);
+      if (applyRemoteRaf !== null) cancelAnimationFrame(applyRemoteRaf);
+      wsProvider.awareness.off('change', throttledSyncAwareness);
+      webrtcProvider.awareness.off('change', throttledSyncAwareness);
       maps.forEach((map) => map.unobserve(applyRemote));
       wsProvider.destroy();
       webrtcProvider.destroy();
@@ -812,18 +828,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!room) return;
     const doc = ydocRef.current;
     if (!doc || !roomReady.current || applyingRemote.current) return;
-    doc.transact(() => {
-      SHARED_KEYS.forEach((key) => {
-        const map = doc.getMap<Record<string, unknown>>(key);
-        const local = sharedItems(wsRef.current, key);
-        for (const item of local) {
-          const remote = map.get(item.id);
-          if (!remote || JSON.stringify(remote) !== JSON.stringify(item)) {
-            map.set(item.id, item as unknown as Record<string, unknown>);
+    const timer = window.setTimeout(() => {
+      if (!ydocRef.current || !roomReady.current || applyingRemote.current) return;
+      ydocRef.current.transact(() => {
+        SHARED_KEYS.forEach((key) => {
+          const map = ydocRef.current!.getMap<Record<string, unknown>>(key);
+          const local = sharedItems(wsRef.current, key);
+          for (const item of local) {
+            const remote = map.get(item.id);
+            if (!remote || JSON.stringify(remote) !== JSON.stringify(item)) {
+              map.set(item.id, item as unknown as Record<string, unknown>);
+            }
           }
-        }
-      });
-    }, 'local');
+        });
+      }, 'local');
+    }, 50);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [room, ws.notes, ws.canvases, ws.tasks, ws.spaces]);
 
   const activeTab = useMemo(

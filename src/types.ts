@@ -150,7 +150,7 @@ export interface Workspace {
 export const TONES: ToneKey[] = ['violet', 'emerald', 'amber', 'sky', 'rose', 'slate'];
 
 export const TONE_HEX: Record<ToneKey, string> = {
-  violet: '#7c5cff',
+  violet: '#a1a1aa',
   emerald: '#34d399',
   amber: '#f5b544',
   sky: '#5b9dff',

@@ -122,7 +122,7 @@ export function SettingsModal() {
             )}
             {peers.length > 0 && (
               <div className="peer-avatars" style={{ marginTop: 10 }}>
-                <span className="peer-avatar" style={{ background: 'var(--violet)' }}>
+                <span className="peer-avatar" style={{ background: 'var(--txt)', color: 'var(--bg-0)' }}>
                   {ws.user.name.slice(0, 1)}
                 </span>
                 {peers.map((peer) => (

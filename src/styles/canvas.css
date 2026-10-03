@@ -69,9 +69,9 @@
 }
 
 .tool.active {
-  background: var(--violet-soft);
-  color: var(--violet-2);
-  box-shadow: inset 0 0 0 1px rgba(124, 92, 255, 0.3);
+  background: var(--ov-12);
+  color: var(--txt);
+  box-shadow: inset 0 0 0 1px var(--line-active);
 }
 
 .board {
@@ -80,16 +80,20 @@
   min-height: 0;
   margin: 0 16px 16px;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: radial-gradient(120% 90% at 50% 0%, rgba(124, 92, 255, 0.07), transparent 60%), var(--board-bg);
+  border: 1.5px solid var(--line-strong);
+  background-color: var(--board-bg);
   overflow: hidden;
   cursor: default;
   touch-action: none;
   user-select: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 8px 32px rgba(0, 0, 0, 0.6);
 }
 
 .board.dots {
-  background-image: radial-gradient(var(--ov-075) 1px, transparent 1px);
+  background-color: #000000;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.09) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
   background-size: var(--grid-size, 24px) var(--grid-size, 24px);
   background-position: var(--grid-x, 0) var(--grid-y, 0);
 }
@@ -375,8 +379,8 @@
 
 .marquee {
   position: absolute;
-  border: 1px solid rgba(124, 92, 255, 0.8);
-  background: rgba(124, 92, 255, 0.14);
+  border: 1px solid var(--line-active);
+  background: var(--ov-10);
   border-radius: 4px;
   pointer-events: none;
   z-index: 4;
@@ -433,8 +437,8 @@
 }
 
 .minimap rect.viewport {
-  fill: rgba(124, 92, 255, 0.18);
-  stroke: rgba(124, 92, 255, 0.7);
+  fill: var(--ov-12);
+  stroke: var(--txt);
   stroke-width: 1;
 }
 
@@ -448,9 +452,9 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(140deg, #7c5cff, #5c3fe0);
-  color: #fff;
-  box-shadow: 0 12px 28px rgba(124, 92, 255, 0.4);
+  background: var(--txt);
+  color: var(--bg-0);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .fab:hover {
@@ -538,7 +542,7 @@
 }
 
 .pen-color.active {
-  box-shadow: 0 0 0 2px var(--violet-soft), 0 0 0 3px var(--violet);
+  box-shadow: 0 0 0 2px var(--line-active), 0 0 0 3px var(--txt);
 }
 
 /* Text Node (Plain) - now clearly stands out as a card */
@@ -556,8 +560,8 @@
 }
 
 .node.plain.selected {
-  border-color: var(--violet);
-  box-shadow: 0 0 0 2px var(--violet-soft), var(--shadow);
+  border-color: var(--txt);
+  box-shadow: 0 0 0 2px var(--line-active), var(--shadow);
 }
 
 .node-plain-input {
@@ -605,8 +609,8 @@
 }
 
 .node.sticker-node.selected {
-  outline: 2px solid var(--violet);
-  box-shadow: 0 0 0 3px var(--violet-soft), 0 14px 32px rgba(0, 0, 0, 0.36);
+  outline: 2px solid var(--txt);
+  box-shadow: 0 0 0 3px var(--line-active), 0 14px 32px rgba(0, 0, 0, 0.36);
 }
 
 .sticker-clip-wrap {
@@ -655,7 +659,7 @@
 }
 
 .sticker-color-dot.active {
-  box-shadow: 0 0 0 2px var(--violet);
+  box-shadow: 0 0 0 2px var(--txt);
   transform: scale(1.15);
 }
 
@@ -712,8 +716,8 @@
 }
 
 .node.image-node.selected {
-  border-color: var(--violet);
-  box-shadow: 0 0 0 2px var(--violet-soft), var(--shadow);
+  border-color: var(--txt);
+  box-shadow: 0 0 0 2px var(--line-active), var(--shadow);
 }
 
 .node-image-container {

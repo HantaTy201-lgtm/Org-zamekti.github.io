@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { Icon, OrgMark } from '../Icon';
 import type { CanvasNode } from '../../types';
@@ -40,7 +40,7 @@ const STICKER_COLORS = [
   '#27272a', // Dark Slate
 ];
 
-export function NodeCard({
+export const NodeCard = memo(function NodeCard({
   node,
   selected,
   editing,
@@ -58,8 +58,65 @@ export function NodeCard({
 }: Props) {
   const isCenter = node.kind === 'text';
 
-  // Отдельный фокус для текстового узла: autoFocus ненадёжен при перерисовке,
-  // из-за чего в новый узел нельзя было печатать.
+  // Локальный буфер для текста и заголовка для плавного набора без задержек сети
+  const [localTitle, setLocalTitle] = useState(node.title);
+  const [localText, setLocalText] = useState(node.text ?? '');
+  const isTypingTitle = useRef(false);
+  const isTypingText = useRef(false);
+  const titleDebounce = useRef<number | null>(null);
+  const textDebounce = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isTypingTitle.current) {
+      setLocalTitle(node.title);
+    }
+  }, [node.title]);
+
+  useEffect(() => {
+    if (!isTypingText.current) {
+      setLocalText(node.text ?? '');
+    }
+  }, [node.text]);
+
+  const handleTitleChange = (val: string) => {
+    setLocalTitle(val);
+    isTypingTitle.current = true;
+    if (titleDebounce.current !== null) window.clearTimeout(titleDebounce.current);
+    titleDebounce.current = window.setTimeout(() => {
+      onPatch(node.id, { title: val });
+      isTypingTitle.current = false;
+    }, 50);
+  };
+
+  const handleTitleBlur = () => {
+    if (titleDebounce.current !== null) {
+      window.clearTimeout(titleDebounce.current);
+      titleDebounce.current = null;
+    }
+    onPatch(node.id, { title: localTitle });
+    isTypingTitle.current = false;
+  };
+
+  const handleTextChange = (val: string) => {
+    setLocalText(val);
+    isTypingText.current = true;
+    if (textDebounce.current !== null) window.clearTimeout(textDebounce.current);
+    textDebounce.current = window.setTimeout(() => {
+      onPatch(node.id, { text: val });
+      isTypingText.current = false;
+    }, 50);
+  };
+
+  const handleTextBlur = () => {
+    if (textDebounce.current !== null) {
+      window.clearTimeout(textDebounce.current);
+      textDebounce.current = null;
+    }
+    onPatch(node.id, { text: localText });
+    isTypingText.current = false;
+  };
+
+  // Отдельный фокус для текстового узла: autoFocus ненадёжен при перерисовке
   const plainInput = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -77,8 +134,9 @@ export function NodeCard({
       <input
         className="node-edit"
         autoFocus
-        value={node.title}
-        onChange={(event) => onPatch(node.id, { title: event.target.value })}
+        value={localTitle}
+        onChange={(event) => handleTitleChange(event.target.value)}
+        onBlur={handleTitleBlur}
       />
     </div>
   ) : (
@@ -339,9 +397,10 @@ export function NodeCard({
           ref={editing ? plainInput : undefined}
           className="sticker-textarea"
           placeholder="Текст стикера…"
-          value={node.text ?? ''}
+          value={editing ? localText : (node.text ?? '')}
           style={{ color: isDark ? '#ffffff' : '#1c1917' }}
-          onChange={(event) => onPatch(node.id, { text: event.target.value })}
+          onChange={(event) => handleTextChange(event.target.value)}
+          onBlur={handleTextBlur}
           onPointerDown={(event) => event.stopPropagation()}
         />
 
@@ -422,8 +481,9 @@ export function NodeCard({
             ref={plainInput}
             className="node-plain-input"
             placeholder="Введи текст…"
-            value={node.text ?? ''}
-            onChange={(event) => onPatch(node.id, { text: event.target.value })}
+            value={localText}
+            onChange={(event) => handleTextChange(event.target.value)}
+            onBlur={handleTextBlur}
             onPointerDown={(event) => event.stopPropagation()}
           />
         ) : node.text ? (
@@ -487,4 +547,4 @@ export function NodeCard({
       )}
     </div>
   );
-}
+});

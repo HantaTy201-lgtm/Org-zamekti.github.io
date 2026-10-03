@@ -22,7 +22,7 @@ import {
 
 type Tool = 'select' | 'create' | 'text' | 'pen' | 'connect' | 'eraser' | 'magic';
 
-const PEN_COLORS = ['#7c5cff', '#34d399', '#f5b544', '#f472b6', '#5b9dff', '#ece9f6'];
+const PEN_COLORS = ['#ffffff', '#34d399', '#f5b544', '#f472b6', '#5b9dff', '#94a3b8'];
 
 const TOOLS: { id: Tool; icon: string; title: string }[] = [
   { id: 'select', icon: 'cursor', title: 'Выделение · V' },
@@ -354,6 +354,52 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     },
     [canvas.id, mutateCanvas],
   );
+
+  const handleStartEdit = useCallback((target: CanvasNode) => {
+    setEditingId(target.id);
+    setSelection([target.id]);
+  }, []);
+
+  const handleHandleDown = useCallback(
+    (event: ReactPointerEvent, node: CanvasNode, _side: HandleSide) => {
+      event.stopPropagation();
+      const board = boardRef.current;
+      if (!board) return;
+      const world = toWorld(event.clientX, event.clientY);
+      capturePointer(board, event.pointerId);
+      gesture.current = { kind: 'link', from: node.id };
+      setLinkTo({ from: node.id, x: world.x, y: world.y });
+    },
+    [toWorld],
+  );
+
+  const handleResizeDown = useCallback(
+    (event: ReactPointerEvent, node: CanvasNode) => {
+      event.stopPropagation();
+      const board = boardRef.current;
+      if (!board) return;
+      capturePointer(board, event.pointerId);
+      pushHistory();
+      gesture.current = {
+        kind: 'resize',
+        id: node.id,
+        startW: node.w,
+        startH: node.h,
+        originX: event.clientX,
+        originY: event.clientY,
+      };
+    },
+    [pushHistory],
+  );
+
+  const handleOpenNote = useCallback(
+    (noteId: string) => {
+      openTab('note', noteId);
+    },
+    [openTab],
+  );
+
+  const noopPointerDown = useCallback(() => undefined, []);
 
   const fitToView = useCallback(() => {
     const el = boardRef.current;
@@ -1266,7 +1312,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               </g>
             ))}
             {linkPreview && (
-              <path d={linkPreview} fill="none" stroke="var(--violet)" strokeWidth={1.6} strokeDasharray="5 4" />
+              <path d={linkPreview} fill="none" stroke="var(--txt)" strokeWidth={1.6} strokeDasharray="5 4" />
             )}
           </svg>
 
@@ -1278,40 +1324,15 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               editing={editingId === node.id}
               dragging={Boolean(dragPositions?.[node.id])}
               showHandles={selection.length === 1 && selection[0] === node.id && !editingId}
-              onPointerDown={() => undefined}
-              onStartEdit={(target) => {
-                setEditingId(target.id);
-                setSelection([target.id]);
-              }}
+              onPointerDown={noopPointerDown}
+              onStartEdit={handleStartEdit}
               onPatch={patchNode}
               onToggleItem={toggleItem}
               onRemoveItem={removeItem}
               onAddItem={addItem}
-              onHandleDown={(event: ReactPointerEvent, node: CanvasNode, _side: HandleSide) => {
-                event.stopPropagation();
-                const board = boardRef.current;
-                if (!board) return;
-                const world = toWorld(event.clientX, event.clientY);
-                capturePointer(board, event.pointerId);
-                gesture.current = { kind: 'link', from: node.id };
-                setLinkTo({ from: node.id, x: world.x, y: world.y });
-              }}
-              onResizeDown={(event: ReactPointerEvent, node: CanvasNode) => {
-                event.stopPropagation();
-                const board = boardRef.current;
-                if (!board) return;
-                capturePointer(board, event.pointerId);
-                pushHistory();
-                gesture.current = {
-                  kind: 'resize',
-                  id: node.id,
-                  startW: node.w,
-                  startH: node.h,
-                  originX: event.clientX,
-                  originY: event.clientY,
-                };
-              }}
-              onOpenNote={(noteId) => openTab('note', noteId)}
+              onHandleDown={handleHandleDown}
+              onResizeDown={handleResizeDown}
+              onOpenNote={handleOpenNote}
             />
           ))}
 

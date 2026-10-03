@@ -66,10 +66,9 @@ export function Sidebar() {
       >
         <img
           src={theme === 'light' ? './logo-light.png' : './logo-dark.png'}
-          alt="Org"
+          alt="Логотип"
           className="brand-logo-img"
         />
-        <span className="brand-name">Org</span>
       </div>
 
       <nav className="sidebar-nav">
