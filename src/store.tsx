@@ -22,6 +22,7 @@ import type {
 } from './types';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
+import { WebsocketProvider } from 'y-websocket';
 import { createSeed } from './data/seed';
 import { downloadJson, uid } from './lib/utils';
 
@@ -240,6 +241,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toastTimer = useRef<number | undefined>(undefined);
   const wsRef = useRef(ws);
   wsRef.current = ws;
+  const ydocRef = useRef<Y.Doc | null>(null);
+  const roomReady = useRef(false);
+
+  const deleteFromRoom = useCallback((key: SharedKey, id: Id) => {
+    const doc = ydocRef.current;
+    if (!doc || !roomReady.current) return;
+    doc.transact(() => {
+      doc.getMap(key).delete(id);
+    }, 'local');
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -333,6 +344,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteSpace = useCallback((id: Id) => {
+    deleteFromRoom('spaces', id);
     setWs((prev) => ({
       ...prev,
       spaces: prev.spaces.filter((s) => s.id !== id),
@@ -345,7 +357,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })),
       activeSpaceId: prev.activeSpaceId === id ? 'all' : prev.activeSpaceId,
     }));
-  }, []);
+  }, [deleteFromRoom]);
 
   const createNote = useCallback((patch: Partial<Note> = {}, open = true) => {
     const timestamp = new Date().toISOString();
@@ -385,6 +397,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteNote = useCallback((id: Id) => {
+    deleteFromRoom('notes', id);
     setWs((prev) => {
       const tabs = prev.tabs.filter((t) => !(t.kind === 'note' && t.refId === id));
       const nextTabs = tabs.length ? tabs : [{ id: uid('tab'), kind: 'home' as ViewKind, title: 'Главная' }];
@@ -401,7 +414,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         activeTabId: nextTabs.some((t) => t.id === prev.activeTabId) ? prev.activeTabId : nextTabs[0].id,
       };
     });
-  }, []);
+  }, [deleteFromRoom]);
 
   const createCanvas = useCallback((name = 'Новый канвас', spaceId?: Id) => {
     const timestamp = new Date().toISOString();
@@ -477,6 +490,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteCanvas = useCallback((id: Id) => {
+    deleteFromRoom('canvases', id);
     setWs((prev) => {
       const tabs = prev.tabs.filter((t) => !(t.kind === 'canvas' && t.refId === id));
       const nextTabs = tabs.length ? tabs : [{ id: uid('tab'), kind: 'home' as ViewKind, title: 'Главная' }];
@@ -488,7 +502,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         activeTabId: nextTabs.some((t) => t.id === prev.activeTabId) ? prev.activeTabId : nextTabs[0].id,
       };
     });
-  }, []);
+  }, [deleteFromRoom]);
 
   const undo = useCallback(() => {
     const snapshot = past.current.pop();
@@ -532,8 +546,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteTask = useCallback((id: Id) => {
+    deleteFromRoom('tasks', id);
     setWs((prev) => ({ ...prev, tasks: prev.tasks.filter((t) => t.id !== id) }));
-  }, []);
+  }, [deleteFromRoom]);
 
   const updateBase = useCallback((id: Id, fn: (base: KnowledgeBase) => KnowledgeBase) => {
     setWs((prev) => ({
@@ -564,22 +579,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setWs(createSeed());
   }, []);
 
-  // --- совместная работа: y-webrtc соединяет браузеры напрямую, своего сервера не нужно ---
+  // --- совместная работа: гибридный WebSocket (100% совместимость с Mac/Windows/моб) + WebRTC ---
   const [room, setRoom] = useState(readRoomParam);
   const [collabStatus, setCollabStatus] = useState<CollabStatus>(room ? 'connecting' : 'off');
   const [peers, setPeers] = useState<Peer[]>([]);
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
-  const providerRef = useRef<WebrtcProvider | null>(null);
+  const wsProviderRef = useRef<WebsocketProvider | null>(null);
+  const webrtcProviderRef = useRef<WebrtcProvider | null>(null);
   const isCreatorRef = useRef(false);
-  const ydocRef = useRef<Y.Doc | null>(null);
   const applyingRemote = useRef(false);
-  const roomReady = useRef(false);
   const myColor = useRef(MEMBER_COLORS[Math.floor(Math.random() * MEMBER_COLORS.length)]);
 
   const updateMyCursor = useCallback((cursor: { x: number; y: number; canvasId: string } | null) => {
-    const awareness = providerRef.current?.awareness;
-    if (!awareness) return;
-    awareness.setLocalStateField('cursor', cursor);
+    wsProviderRef.current?.awareness.setLocalStateField('cursor', cursor);
+    webrtcProviderRef.current?.awareness.setLocalStateField('cursor', cursor);
   }, []);
 
   useEffect(() => {
@@ -593,7 +606,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCollabStatus('connecting');
     roomReady.current = false;
     const doc = new Y.Doc();
-    const provider = new WebrtcProvider(`org-${room}`, doc, {
+    ydocRef.current = doc;
+
+    const roomName = `org-v2-${room}`;
+
+    // 1. WebSocket провайдер (надёжно соединяет через интернет между разными сетями, Mac, Windows, мобильными)
+    const wsProvider = new WebsocketProvider('wss://demos.yjs.dev/ws', roomName, doc);
+    wsProviderRef.current = wsProvider;
+
+    // 2. WebRTC провайдер (P2P резерв)
+    const webrtcProvider = new WebrtcProvider(roomName, doc, {
       signaling: SIGNALING,
       peerOpts: {
         config: {
@@ -601,8 +623,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         },
       },
     });
-    ydocRef.current = doc;
-    providerRef.current = provider;
+    webrtcProviderRef.current = webrtcProvider;
 
     const maps = SHARED_KEYS.map((key) => doc.getMap<Record<string, unknown>>(key));
     const meta = doc.getMap<unknown>('meta');
@@ -613,10 +634,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const next: Workspace = { ...prev };
         SHARED_KEYS.forEach((key, index) => {
           const incoming = Array.from(maps[index].values());
-          if (key === 'notes') next.notes = incoming as unknown as Note[];
-          else if (key === 'canvases') next.canvases = incoming as unknown as Canvas[];
-          else if (key === 'tasks') next.tasks = incoming as unknown as Task[];
-          else next.spaces = incoming as unknown as Space[];
+          if (incoming.length > 0) {
+            if (key === 'notes') next.notes = incoming as unknown as Note[];
+            else if (key === 'canvases') next.canvases = incoming as unknown as Canvas[];
+            else if (key === 'tasks') next.tasks = incoming as unknown as Task[];
+            else next.spaces = incoming as unknown as Space[];
+          }
         });
 
         // Сохраняем тему текущего пользователя (тема не перезаписывается комнатой)
@@ -673,7 +696,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               maps[index].set(item.id, item as unknown as Record<string, unknown>);
             }
           });
-        });
+        }, 'local');
       }
     };
 
@@ -682,28 +705,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       openRoom();
     }
 
-    const applyRemote = () => {
-      if (!roomReady.current) return;
+    const applyRemote = (_event: any, tr: any) => {
+      if (tr && tr.origin === 'local') return;
+      if (!roomReady.current) {
+        openRoom();
+        return;
+      }
       adoptRoom();
     };
 
     maps.forEach((map) => map.observe(applyRemote));
 
-    const awareness = provider.awareness;
     const syncAwareness = () => {
       const list: Peer[] = [];
       const cursors: RemoteCursor[] = [];
-      awareness.getStates().forEach((state, clientId) => {
-        if (clientId === doc.clientID) return;
+      const seen = new Set<number>();
+
+      const checkPeer = (clientId: number, state: any) => {
+        if (clientId === doc.clientID || seen.has(clientId)) return;
+        seen.add(clientId);
         const user = state.user as { name?: string; color?: string } | undefined;
-        const cursor = state.cursor as { x: number; y: number; canvasId: string } | undefined;
-        const peerName = user?.name ?? 'Гость';
-        const peerColor = user?.color ?? MEMBER_COLORS[0];
+        if (!user?.name) return;
+        const peerName = user.name;
+        const peerColor = user.color ?? MEMBER_COLORS[0];
         list.push({
           id: clientId,
           name: peerName,
           color: peerColor,
         });
+        const cursor = state.cursor as { x: number; y: number; canvasId: string } | undefined;
         if (cursor && typeof cursor.x === 'number' && typeof cursor.y === 'number') {
           cursors.push({
             id: clientId,
@@ -714,19 +744,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             canvasId: cursor.canvasId,
           });
         }
-      });
+      };
+
+      wsProvider.awareness.getStates().forEach((state, id) => checkPeer(id, state));
+      webrtcProvider.awareness.getStates().forEach((state, id) => checkPeer(id, state));
+
       setPeers(list);
       setRemoteCursors(cursors);
-      setCollabStatus(list.length ? 'online' : roomReady.current ? 'online' : 'connecting');
+      setCollabStatus(list.length > 0 || wsProvider.wsconnected ? 'online' : 'connecting');
     };
 
-    awareness.setLocalStateField('user', {
+    const userState = {
       name: wsRef.current.user.name,
       color: myColor.current,
+    };
+    wsProvider.awareness.setLocalStateField('user', userState);
+    webrtcProvider.awareness.setLocalStateField('user', userState);
+
+    wsProvider.awareness.on('change', syncAwareness);
+    webrtcProvider.awareness.on('change', syncAwareness);
+
+    wsProvider.on('status', (e: { status: string }) => {
+      if (e.status === 'connected') {
+        openRoom();
+        syncAwareness();
+      }
     });
-    awareness.on('change', syncAwareness);
-    provider.on('peers', syncAwareness);
-    provider.on('synced', ({ synced }: { synced: boolean }) => {
+
+    wsProvider.on('sync', (isSynced: boolean) => {
+      if (isSynced) {
+        openRoom();
+        syncAwareness();
+      }
+    });
+
+    webrtcProvider.on('synced', ({ synced }: { synced: boolean }) => {
       if (synced) {
         openRoom();
         syncAwareness();
@@ -740,12 +792,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     return () => {
       window.clearTimeout(fallback);
-      awareness.off('change', syncAwareness);
+      wsProvider.awareness.off('change', syncAwareness);
+      webrtcProvider.awareness.off('change', syncAwareness);
       maps.forEach((map) => map.unobserve(applyRemote));
-      provider.destroy();
+      wsProvider.destroy();
+      webrtcProvider.destroy();
       doc.destroy();
       ydocRef.current = null;
-      providerRef.current = null;
+      wsProviderRef.current = null;
+      webrtcProviderRef.current = null;
       roomReady.current = false;
       setCollabStatus('off');
       setPeers([]);
@@ -756,26 +811,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!room) return;
     const doc = ydocRef.current;
-    const timer = window.setTimeout(() => {
-      if (!doc || applyingRemote.current || !roomReady.current) return;
-      doc.transact(() => {
-        SHARED_KEYS.forEach((key) => {
-          const map = doc.getMap<Record<string, unknown>>(key);
-          const local = sharedItems(wsRef.current, key);
-          const ids = new Set(local.map((item) => item.id));
-          for (const item of local) {
-            if (JSON.stringify(map.get(item.id)) !== JSON.stringify(item)) {
-              map.set(item.id, item as unknown as Record<string, unknown>);
-            }
+    if (!doc || !roomReady.current || applyingRemote.current) return;
+    doc.transact(() => {
+      SHARED_KEYS.forEach((key) => {
+        const map = doc.getMap<Record<string, unknown>>(key);
+        const local = sharedItems(wsRef.current, key);
+        for (const item of local) {
+          const remote = map.get(item.id);
+          if (!remote || JSON.stringify(remote) !== JSON.stringify(item)) {
+            map.set(item.id, item as unknown as Record<string, unknown>);
           }
-          for (const existing of Array.from(map.keys())) {
-            if (!ids.has(existing)) map.delete(existing);
-          }
-        });
+        }
       });
-    }, 80);
-
-    return () => window.clearTimeout(timer);
+    }, 'local');
   }, [room, ws.notes, ws.canvases, ws.tasks, ws.spaces]);
 
   const activeTab = useMemo(

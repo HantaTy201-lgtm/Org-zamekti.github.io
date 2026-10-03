@@ -148,6 +148,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   // по узлу определяем вручную по двум нажатиям подряд.
   const lastNodePress = useRef<{ id: Id; at: number } | null>(null);
   const lastDownOnNode = useRef<Id | null>(null);
+  const lastCursorSend = useRef(0);
 
   const strokes = canvas.strokes ?? [];
 
@@ -597,8 +598,12 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (room) {
-      const worldPos = toWorld(event.clientX, event.clientY);
-      updateMyCursor({ x: Math.round(worldPos.x), y: Math.round(worldPos.y), canvasId: canvas.id });
+      const now = Date.now();
+      if (now - lastCursorSend.current > 35) {
+        lastCursorSend.current = now;
+        const worldPos = toWorld(event.clientX, event.clientY);
+        updateMyCursor({ x: Math.round(worldPos.x), y: Math.round(worldPos.y), canvasId: canvas.id });
+      }
     }
     const g = gesture.current;
     if (!g) return;
