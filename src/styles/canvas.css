@@ -522,6 +522,11 @@
   top: 0;
   overflow: visible;
   pointer-events: none;
+  z-index: 15;
+}
+
+.board-strokes.erasable {
+  pointer-events: auto;
 }
 
 .board-strokes.erasable polyline {
@@ -529,8 +534,18 @@
   cursor: pointer;
 }
 
-.board.tool-pen {
-  cursor: crosshair;
+.board.tool-pen,
+.board.tool-pen .node,
+.board.tool-pen .node *,
+.board.tool-pen .node-img-element,
+.board.tool-pen .node-image-container {
+  cursor: crosshair !important;
+}
+
+.board.tool-eraser,
+.board.tool-eraser .node,
+.board.tool-eraser .node * {
+  cursor: cell !important;
 }
 
 .pen-color {
@@ -711,13 +726,50 @@
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 
 .node.image-node.selected {
   border-color: var(--txt);
   box-shadow: 0 0 0 2px var(--line-active), var(--shadow);
+}
+
+.node-image-actions {
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--chrome);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+  z-index: 20;
+  white-space: nowrap;
+}
+
+.node-image-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt);
+  background: var(--ov-08);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.node-image-action-btn:hover {
+  background: var(--txt);
+  color: var(--bg-0);
 }
 
 .node-image-container {

@@ -20,6 +20,7 @@ interface Props {
   onHandleDown: (event: ReactPointerEvent, node: CanvasNode, side: HandleSide) => void;
   onResizeDown: (event: ReactPointerEvent, node: CanvasNode) => void;
   onOpenNote: (noteId: string) => void;
+  onDrawOnImage?: (node: CanvasNode) => void;
 }
 
 const HANDLES: { side: HandleSide; style: CSSProperties }[] = [
@@ -55,6 +56,7 @@ export const NodeCard = memo(function NodeCard({
   onHandleDown,
   onResizeDown,
   onOpenNote,
+  onDrawOnImage,
 }: Props) {
   const isCenter = node.kind === 'text';
 
@@ -456,6 +458,19 @@ export const NodeCard = memo(function NodeCard({
               onPointerDown={(event) => onHandleDown(event, node, handle.side)}
             />
           ))}
+
+        {selected && onDrawOnImage && (
+          <div className="node-image-actions" onPointerDown={(e) => e.stopPropagation()}>
+            <button
+              className="node-image-action-btn"
+              title="Включить рисование на этом фото (P)"
+              onClick={() => onDrawOnImage(node)}
+            >
+              <Icon name="pen" size={12} />
+              Рисовать
+            </button>
+          </div>
+        )}
 
         {selected && (
           <span className="node-resize" onPointerDown={(event) => onResizeDown(event, node)} />

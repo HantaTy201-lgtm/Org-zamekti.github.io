@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="./logo-dark.png" />
+    <link rel="icon" type="image/png" href="./assets/app.png" />
     <title>Org — структурируй мысли, визуализируй идеи</title>
     <meta
       name="description"
@@ -28,23 +28,10 @@
         } catch (e) {}
       })();
     </script>
+    <script type="module" crossorigin src="./assets/app.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/app.css">
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <script type="module">
-      setTimeout(() => {
-        const root = document.getElementById('root');
-        if (!root || !root.hasChildNodes()) {
-          import('./assets/app.js');
-          if (!document.querySelector('link[href*="app.css"]')) {
-            const l = document.createElement('link');
-            l.rel = 'stylesheet';
-            l.href = './assets/app.css';
-            document.head.appendChild(l);
-          }
-        }
-      }, 50);
-    </script>
+    <div id="root"></div>
   </body>
 </html>

@@ -22,7 +22,7 @@ import {
 
 type Tool = 'select' | 'create' | 'text' | 'pen' | 'connect' | 'eraser' | 'magic';
 
-const PEN_COLORS = ['#ffffff', '#34d399', '#f5b544', '#f472b6', '#5b9dff', '#94a3b8'];
+const PEN_COLORS = ['#ef4444', '#f5b544', '#34d399', '#5b9dff', '#ffffff', '#000000'];
 
 const TOOLS: { id: Tool; icon: string; title: string }[] = [
   { id: 'select', icon: 'cursor', title: 'Выделение · V' },
@@ -33,6 +33,30 @@ const TOOLS: { id: Tool; icon: string; title: string }[] = [
   { id: 'eraser', icon: 'eraser', title: 'Ластик · E' },
   { id: 'magic', icon: 'wand', title: 'Выровнять схему · M' },
 ];
+
+function distSqToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+  const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+  if (l2 === 0) return (px - x1) * (px - x1) + (py - y1) * (py - y1);
+  let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  const projX = x1 + t * (x2 - x1);
+  const projY = y1 + t * (y2 - y1);
+  return (px - projX) * (px - projX) + (py - projY) * (py - projY);
+}
+
+function findStrokeAt(x: number, y: number, strokesList: Stroke[], maxDist = 18): Stroke | null {
+  const maxDistSq = maxDist * maxDist;
+  for (let sIdx = strokesList.length - 1; sIdx >= 0; sIdx--) {
+    const s = strokesList[sIdx];
+    const pts = s.points;
+    for (let i = 0; i + 3 < pts.length; i += 2) {
+      if (distSqToSegment(x, y, pts[i], pts[i + 1], pts[i + 2], pts[i + 3]) <= maxDistSq) {
+        return s;
+      }
+    }
+  }
+  return null;
+}
 
 function toPointList(points: number[]): string {
   const parts: string[] = [];
@@ -55,7 +79,8 @@ type Gesture =
   | { kind: 'marquee'; x0: number; y0: number; additive: boolean }
   | { kind: 'link'; from: Id }
   | { kind: 'create'; x0: number; y0: number }
-  | { kind: 'draw'; id: Id; points: number[] };
+  | { kind: 'eraser' }
+  | { kind: 'draw'; id: Id; points: number[]; nodeId?: Id };
 
 function isEditable(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -174,6 +199,28 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
 
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
+
+  const renderedStrokes = useMemo(() => {
+    const list = [...strokes, ...(draftStroke ? [draftStroke] : [])];
+    if (!dragPositions) return list;
+
+    const originalNodes = new Map(canvas.nodes.map((n) => [n.id, n]));
+    return list.map((stroke) => {
+      if (!stroke.nodeId) return stroke;
+      const movedPos = dragPositions[stroke.nodeId];
+      const orig = originalNodes.get(stroke.nodeId);
+      if (!movedPos || !orig) return stroke;
+      const dx = movedPos.x - orig.x;
+      const dy = movedPos.y - orig.y;
+      if (dx === 0 && dy === 0) return stroke;
+
+      const newPoints: number[] = [];
+      for (let i = 0; i < stroke.points.length; i += 2) {
+        newPoints.push(stroke.points[i] + dx, stroke.points[i + 1] + dy);
+      }
+      return { ...stroke, points: newPoints };
+    });
+  }, [strokes, draftStroke, dragPositions, canvas.nodes]);
 
   const space = spacesById[canvas.spaceId];
 
@@ -295,6 +342,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         ...c,
         nodes: c.nodes.filter((n) => !ids.includes(n.id)),
         edges: c.edges.filter((e) => !ids.includes(e.from) && !ids.includes(e.to)),
+        strokes: (c.strokes ?? []).filter((s) => !s.nodeId || !ids.includes(s.nodeId)),
       }));
       setSelection((prev) => prev.filter((id) => !ids.includes(id)));
     },
@@ -397,6 +445,15 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       openTab('note', noteId);
     },
     [openTab],
+  );
+
+  const handleDrawOnImage = useCallback(
+    (targetNode: CanvasNode) => {
+      setTool('pen');
+      setSelection([targetNode.id]);
+      toast('Перо активно — рисуй прямо на фото');
+    },
+    [toast],
   );
 
   const noopPointerDown = useCallback(() => undefined, []);
@@ -532,14 +589,49 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
           ...c,
           strokes: (c.strokes ?? []).filter((s) => s.id !== strokeId),
         }));
+        capturePointer(board, event.pointerId);
+        gesture.current = { kind: 'eraser' };
         return;
       }
+      const strokeToErase = findStrokeAt(world.x, world.y, strokes, 18);
+      if (strokeToErase) {
+        mutateCanvas(canvas.id, (c) => ({
+          ...c,
+          strokes: (c.strokes ?? []).filter((s) => s.id !== strokeToErase.id),
+        }));
+        capturePointer(board, event.pointerId);
+        gesture.current = { kind: 'eraser' };
+        return;
+      }
+      if (target.closest('path.hit')) {
+        return;
+      }
+      if (pressedNodeId) {
+        removeNodes([pressedNodeId]);
+        return;
+      }
+      capturePointer(board, event.pointerId);
+      gesture.current = { kind: 'eraser' };
+      return;
     }
 
     if (tool === 'pen') {
-      const stroke: Stroke = { id: uid('st'), points: [world.x, world.y], color: penColor, width: 3 };
+      let targetNodeId = pressedNodeId;
+      if (!targetNodeId) {
+        const hit = [...nodes].reverse().find(
+          (n) => world.x >= n.x && world.x <= n.x + n.w && world.y >= n.y && world.y <= n.y + n.h,
+        );
+        if (hit) targetNodeId = hit.id;
+      }
+      const stroke: Stroke = {
+        id: uid('st'),
+        points: [world.x, world.y],
+        color: penColor,
+        width: 3,
+        nodeId: targetNodeId ?? undefined,
+      };
       capturePointer(board, event.pointerId);
-      gesture.current = { kind: 'draw', id: stroke.id, points: stroke.points };
+      gesture.current = { kind: 'draw', id: stroke.id, points: stroke.points, nodeId: stroke.nodeId };
       setDraftStroke(stroke);
       return;
     }
@@ -578,10 +670,6 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     const nodeEl = target.closest('[data-node-id]') as HTMLElement | null;
     if (nodeEl) {
       const id = nodeEl.dataset.nodeId as Id;
-      if (tool === 'eraser') {
-        removeNodes([id]);
-        return;
-      }
       if (tool === 'connect') {
         capturePointer(board, event.pointerId);
         gesture.current = { kind: 'link', from: id };
@@ -657,7 +745,18 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
 
     if (g.kind === 'draw') {
       g.points.push(world.x, world.y);
-      setDraftStroke({ id: g.id, points: [...g.points], color: penColor, width: 3 });
+      setDraftStroke({ id: g.id, points: [...g.points], color: penColor, width: 3, nodeId: g.nodeId });
+      return;
+    }
+
+    if (g.kind === 'eraser') {
+      const strokeToErase = findStrokeAt(world.x, world.y, strokes, 18);
+      if (strokeToErase) {
+        mutateCanvas(canvas.id, (c) => ({
+          ...c,
+          strokes: (c.strokes ?? []).filter((s) => s.id !== strokeToErase.id),
+        }));
+      }
       return;
     }
 
@@ -711,13 +810,16 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     if (!g) return;
 
     if (g.kind === 'draw') {
-      const points = [...g.points];
+      let points = [...g.points];
+      if (points.length === 2) {
+        points = [points[0], points[1], points[0] + 0.1, points[1] + 0.1];
+      }
       if (points.length >= 4) {
         mutateCanvas(canvas.id, (c) => ({
           ...c,
           strokes: [
             ...(c.strokes ?? []),
-            { id: g.id, points, color: penColor, width: 3, rev: Date.now() },
+            { id: g.id, points, color: penColor, width: 3, nodeId: g.nodeId, rev: Date.now() },
           ],
         }));
       }
@@ -725,8 +827,13 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       return;
     }
 
+    if (g.kind === 'eraser') {
+      return;
+    }
+
     if (g.kind === 'node' && dragPositions) {
       const positions = dragPositions;
+      const origMap = new Map(canvas.nodes.map((n) => [n.id, n]));
       mutateCanvas(
         canvas.id,
         (c) => ({
@@ -736,6 +843,19 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               ? { ...n, x: positions[n.id].x, y: positions[n.id].y, rev: Date.now() }
               : n,
           ),
+          strokes: (c.strokes ?? []).map((s) => {
+            if (!s.nodeId || !positions[s.nodeId]) return s;
+            const orig = origMap.get(s.nodeId);
+            if (!orig) return s;
+            const dx = positions[s.nodeId].x - orig.x;
+            const dy = positions[s.nodeId].y - orig.y;
+            if (dx === 0 && dy === 0) return s;
+            const pts: number[] = [];
+            for (let i = 0; i < s.points.length; i += 2) {
+              pts.push(s.points[i] + dx, s.points[i + 1] + dy);
+            }
+            return { ...s, points: pts, rev: Date.now() };
+          }),
         }),
         { history: false },
       );
@@ -1245,27 +1365,6 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
           style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
         >
           <svg
-            className={`board-strokes${tool === 'eraser' ? ' erasable' : ''}`}
-            style={{ left: svgBox.minX, top: svgBox.minY }}
-            width={svgBox.w}
-            height={svgBox.h}
-            viewBox={`${svgBox.minX} ${svgBox.minY} ${svgBox.w} ${svgBox.h}`}
-          >
-            {[...strokes, ...(draftStroke ? [draftStroke] : [])].map((stroke) => (
-              <polyline
-                key={stroke.id}
-                data-stroke-id={stroke.id}
-                points={toPointList(stroke.points)}
-                fill="none"
-                stroke={stroke.color}
-                strokeWidth={stroke.width}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
-          </svg>
-
-          <svg
             className="board-edges"
             style={{ left: svgBox.minX, top: svgBox.minY }}
             width={svgBox.w}
@@ -1333,8 +1432,30 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
               onHandleDown={handleHandleDown}
               onResizeDown={handleResizeDown}
               onOpenNote={handleOpenNote}
+              onDrawOnImage={handleDrawOnImage}
             />
           ))}
+
+          <svg
+            className={`board-strokes${tool === 'eraser' ? ' erasable' : ''}`}
+            style={{ left: svgBox.minX, top: svgBox.minY }}
+            width={svgBox.w}
+            height={svgBox.h}
+            viewBox={`${svgBox.minX} ${svgBox.minY} ${svgBox.w} ${svgBox.h}`}
+          >
+            {renderedStrokes.map((stroke) => (
+              <polyline
+                key={stroke.id}
+                data-stroke-id={stroke.id}
+                points={toPointList(stroke.points)}
+                fill="none"
+                stroke={stroke.color}
+                strokeWidth={stroke.width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+          </svg>
 
           {remoteCursors
             .filter((c) => c.canvasId === canvas.id)

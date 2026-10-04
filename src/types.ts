@@ -67,6 +67,7 @@ export interface Stroke {
   points: number[];
   color: string;
   width: number;
+  nodeId?: Id;
   rev?: number;
 }
 
