@@ -51,6 +51,8 @@ export interface CanvasNode {
   text?: string;
   imageUrl?: string;
   color?: string;
+  fontFamily?: string;
+  fontSize?: number;
   rev?: number;
 }
 
@@ -136,7 +138,7 @@ export interface Tab {
 
 export interface Workspace {
   version: number;
-  user: { name: string };
+  user: { name: string; avatar?: string };
   theme?: 'dark' | 'light';
   spaces: Space[];
   notes: Note[];

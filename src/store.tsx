@@ -35,12 +35,14 @@ export interface Peer {
   id: number;
   name: string;
   color: string;
+  avatar?: string;
 }
 
 export interface RemoteCursor {
   id: number;
   name: string;
   color: string;
+  avatar?: string;
   x: number;
   y: number;
   canvasId: string;
@@ -107,11 +109,24 @@ function loadWorkspace(): Workspace {
     const parsed = JSON.parse(raw) as Partial<Workspace> | null;
     if (!parsed || typeof parsed !== 'object' || parsed.version !== 1) return seed;
 
-    const notes = Array.isArray(parsed.notes) ? parsed.notes : [];
-    const canvases = Array.isArray(parsed.canvases) ? parsed.canvases : [];
-    // A workspace with no notes *and* no canvases is a broken/truncated save,
-    // not an intentional empty one - restore the demo seed instead of a blank app.
-    if (notes.length === 0 && canvases.length === 0) return seed;
+    const demoNoteIds = new Set([
+      'n_strategy', 'n_competitors', 'n_scenarios', 'n_features', 'n_mvp',
+      'n_design', 'n_onboarding', 'n_retro', 'n_reading', 'n_book_notes',
+    ]);
+    const demoNodeIds = new Set([
+      'cn_ideas', 'cn_projects', 'cn_org', 'cn_inspire', 'cn_plan', 'cn_links',
+    ]);
+
+    const notes = (Array.isArray(parsed.notes) ? parsed.notes : []).filter(
+      (n) => !demoNoteIds.has(n.id),
+    );
+    let canvases: Canvas[] = (Array.isArray(parsed.canvases) ? (parsed.canvases as Canvas[]) : []).map((c) => ({
+      ...c,
+      nodes: (c.nodes ?? []).filter((node) => !demoNodeIds.has(node.id)),
+      edges: (c.edges ?? []).filter((edge) => !demoNodeIds.has(edge.from) && !demoNodeIds.has(edge.to)),
+      strokes: Array.isArray(c.strokes) ? c.strokes : [],
+    }));
+    if (canvases.length === 0) canvases = seed.canvases;
 
     // Пространства теперь создаёт сам пользователь, поэтому предустановленные убираем,
     // а заметки и канвасы, которые на них ссылались, остаются без пространства.
@@ -122,8 +137,10 @@ function loadWorkspace(): Workspace {
     const spaceIds = new Set(spaces.map((space) => space.id));
     const spaceOf = (id: Id | undefined) => (id && spaceIds.has(id) ? id : '');
 
-    const tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
-    const bases = Array.isArray(parsed.bases) && parsed.bases.length ? parsed.bases : seed.bases;
+    const tasks = (Array.isArray(parsed.tasks) ? parsed.tasks : []).filter(
+      (t) => !t.noteId || !demoNoteIds.has(t.noteId),
+    );
+    const bases = Array.isArray(parsed.bases) ? parsed.bases : [];
 
     const noteIds = new Set(notes.map((n) => n.id));
     const canvasIds = new Set(canvases.map((c) => c.id));
@@ -208,6 +225,7 @@ export interface StoreValue {
   setActiveSpace: (spaceId: Id | 'all') => void;
   createSpace: (name: string, tone?: ToneKey) => Space;
   setUserName: (name: string) => void;
+  setUserAvatar: (avatar: string | undefined) => void;
   createNote: (patch?: Partial<Note>, open?: boolean) => Note;
   updateNote: (id: Id, patch: Partial<Note>) => void;
   deleteNote: (id: Id) => void;
@@ -330,6 +348,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const setUserName = useCallback((name: string) => {
     setWs((prev) => ({ ...prev, user: { ...prev.user, name } }));
+  }, []);
+
+  const setUserAvatar = useCallback((avatar: string | undefined) => {
+    setWs((prev) => ({ ...prev, user: { ...prev.user, avatar } }));
   }, []);
 
   const setTheme = useCallback((theme: 'dark' | 'light') => {
@@ -730,14 +752,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const checkPeer = (clientId: number, state: any) => {
         if (clientId === doc.clientID || seen.has(clientId)) return;
         seen.add(clientId);
-        const user = state.user as { name?: string; color?: string } | undefined;
+        const user = state.user as { name?: string; color?: string; avatar?: string } | undefined;
         if (!user?.name) return;
         const peerName = user.name;
         const peerColor = user.color ?? MEMBER_COLORS[0];
+        const peerAvatar = user.avatar;
         list.push({
           id: clientId,
           name: peerName,
           color: peerColor,
+          avatar: peerAvatar,
         });
         const cursor = state.cursor as { x: number; y: number; canvasId: string } | undefined;
         if (cursor && typeof cursor.x === 'number' && typeof cursor.y === 'number') {
@@ -745,6 +769,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             id: clientId,
             name: peerName,
             color: peerColor,
+            avatar: peerAvatar,
             x: cursor.x,
             y: cursor.y,
             canvasId: cursor.canvasId,
@@ -765,11 +790,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       awarenessThrottle = window.setTimeout(() => {
         awarenessThrottle = null;
         syncAwareness();
-      }, 35);
+      }, 45);
     };
 
     const userState = {
       name: wsRef.current.user.name,
+      avatar: wsRef.current.user.avatar,
       color: myColor.current,
     };
     wsProvider.awareness.setLocalStateField('user', userState);
@@ -842,12 +868,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
         });
       }, 'local');
-    }, 50);
+    }, 120);
 
     return () => {
       window.clearTimeout(timer);
     };
   }, [room, ws.notes, ws.canvases, ws.tasks, ws.spaces]);
+
+  useEffect(() => {
+    if (!room) return;
+    const userState = {
+      name: ws.user.name,
+      avatar: ws.user.avatar,
+      color: myColor.current,
+    };
+    wsProviderRef.current?.awareness.setLocalStateField('user', userState);
+    webrtcProviderRef.current?.awareness.setLocalStateField('user', userState);
+  }, [room, ws.user.name, ws.user.avatar]);
 
   const activeTab = useMemo(
     () => ws.tabs.find((t) => t.id === ws.activeTabId) ?? ws.tabs[0],
@@ -937,6 +974,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setActiveSpace,
     createSpace,
     setUserName,
+    setUserAvatar,
     createNote,
     updateNote,
     deleteNote,

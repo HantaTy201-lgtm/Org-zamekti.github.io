@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
@@ -22,7 +22,23 @@ import {
 
 type Tool = 'select' | 'create' | 'text' | 'pen' | 'connect' | 'eraser' | 'magic';
 
-const PEN_COLORS = ['#ef4444', '#f5b544', '#34d399', '#5b9dff', '#ffffff', '#000000'];
+const PEN_COLORS = [
+  '#ef4444', // Red
+  '#f97316', // Orange
+  '#f59e0b', // Amber
+  '#eab308', // Yellow
+  '#10b981', // Emerald
+  '#06b6d4', // Cyan
+  '#3b82f6', // Blue
+  '#6366f1', // Indigo
+  '#a855f7', // Purple
+  '#ec4899', // Pink
+  '#ffffff', // White
+  '#94a3b8', // Gray
+  '#000000', // Black
+];
+
+const PEN_WIDTH_PRESETS = [2, 4, 8, 14];
 
 const TOOLS: { id: Tool; icon: string; title: string }[] = [
   { id: 'select', icon: 'cursor', title: 'Выделение · V' },
@@ -131,6 +147,74 @@ function edgeGeometry(a: CanvasNode, b: CanvasNode): string {
   return `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ex} ${ey}`;
 }
 
+const RemoteCursorsOverlay = memo(function RemoteCursorsOverlay({ canvasId }: { canvasId: Id }) {
+  const { remoteCursors } = useStore();
+  const cursors = useMemo(
+    () => remoteCursors.filter((c) => c.canvasId === canvasId),
+    [remoteCursors, canvasId],
+  );
+
+  if (cursors.length === 0) return null;
+
+  return (
+    <>
+      {cursors.map((c) => (
+        <div
+          key={c.id}
+          className="remote-cursor"
+          style={{
+            position: 'absolute',
+            left: c.x,
+            top: c.y,
+            pointerEvents: 'none',
+            zIndex: 400,
+            transform: 'translate(-2px, -2px)',
+            transition: 'left 0.08s linear, top 0.08s linear',
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M5.65 2.15C5.3 1.8 4.7 2.05 4.7 2.55V21.45C4.7 21.95 5.3 22.2 5.65 21.85L10.9 16.6H19.55C20.05 16.6 20.3 16 19.95 15.65L5.65 2.15Z"
+              fill={c.color}
+              stroke="#000000"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <div
+            style={{
+              position: 'absolute',
+              left: 14,
+              top: 14,
+              padding: '2px 7px',
+              borderRadius: 6,
+              background: c.color,
+              color: '#ffffff',
+              fontSize: 11,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+              letterSpacing: '-0.01em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            {c.avatar ? (
+              <img
+                src={c.avatar}
+                alt=""
+                style={{ width: 14, height: 14, borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : null}
+            <span>{c.name}</span>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+});
+
 export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   const {
     spacesById,
@@ -147,7 +231,6 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     openTab,
     toast,
     room,
-    remoteCursors,
     updateMyCursor,
   } = useStore();
   const { setCanvasFocus, focusRequest } = useSelection();
@@ -166,7 +249,35 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   const [linkTo, setLinkTo] = useState<{ from: Id; x: number; y: number } | null>(null);
   const [quickAdd, setQuickAdd] = useState(false);
   const [spacePressed, setSpacePressed] = useState(false);
-  const [penColor, setPenColor] = useState(PEN_COLORS[0]);
+  const [penColor, setPenColor] = useState(() => {
+    try {
+      return localStorage.getItem('org.penColor') || PEN_COLORS[0];
+    } catch {
+      return PEN_COLORS[0];
+    }
+  });
+  const [penWidth, setPenWidth] = useState(() => {
+    try {
+      return Number(localStorage.getItem('org.penWidth')) || 3;
+    } catch {
+      return 3;
+    }
+  });
+
+  const handleSetPenColor = useCallback((color: string) => {
+    setPenColor(color);
+    try {
+      localStorage.setItem('org.penColor', color);
+    } catch {}
+  }, []);
+
+  const handleSetPenWidth = useCallback((width: number) => {
+    setPenWidth(width);
+    try {
+      localStorage.setItem('org.penWidth', String(width));
+    } catch {}
+  }, []);
+
   const [draftStroke, setDraftStroke] = useState<Stroke | null>(null);
   const [focusMode, setFocusMode] = useState(false);
   // Захват указателя переадресует click/dblclick самому холсту, поэтому двойной клик
@@ -627,7 +738,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         id: uid('st'),
         points: [world.x, world.y],
         color: penColor,
-        width: 3,
+        width: penWidth,
         nodeId: targetNodeId ?? undefined,
       };
       capturePointer(board, event.pointerId);
@@ -733,7 +844,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (room) {
       const now = Date.now();
-      if (now - lastCursorSend.current > 35) {
+      if (now - lastCursorSend.current > 45) {
         lastCursorSend.current = now;
         const worldPos = toWorld(event.clientX, event.clientY);
         updateMyCursor({ x: Math.round(worldPos.x), y: Math.round(worldPos.y), canvasId: canvas.id });
@@ -745,7 +856,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
 
     if (g.kind === 'draw') {
       g.points.push(world.x, world.y);
-      setDraftStroke({ id: g.id, points: [...g.points], color: penColor, width: 3, nodeId: g.nodeId });
+      setDraftStroke({ id: g.id, points: [...g.points], color: penColor, width: penWidth, nodeId: g.nodeId });
       return;
     }
 
@@ -819,7 +930,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
           ...c,
           strokes: [
             ...(c.strokes ?? []),
-            { id: g.id, points, color: penColor, width: 3, nodeId: g.nodeId, rev: Date.now() },
+            { id: g.id, points, color: penColor, width: penWidth, nodeId: g.nodeId, rev: Date.now() },
           ],
         }));
       }
@@ -940,13 +1051,17 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         event.preventDefault();
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      const isCmd = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      const code = event.code;
+
+      if (isCmd && (code === 'KeyZ' || key === 'z' || key === 'я')) {
         event.preventDefault();
         if (event.shiftKey) redo();
         else undo();
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+      if (isCmd && (code === 'KeyY' || key === 'y' || key === 'н')) {
         event.preventDefault();
         redo();
         return;
@@ -963,15 +1078,15 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         setEditingId(null);
         return;
       }
-      const key = event.key.toLowerCase();
-      if (key === 'v') setTool('select');
-      else if (key === 'r') setTool('create');
-      else if (key === 't') setTool('text');
-      else if (key === 'p') setTool('pen');
-      else if (key === 'c') setTool('connect');
-      else if (key === 'f') setFocusMode((value) => !value);
-      else if (key === 'e') setTool('eraser');
-      else if (key === 'm') magicLayout();
+
+      if (code === 'KeyV' || key === 'v' || key === 'м') setTool('select');
+      else if (code === 'KeyR' || key === 'r' || key === 'к') setTool('create');
+      else if (code === 'KeyT' || key === 't' || key === 'е') setTool('text');
+      else if (code === 'KeyP' || key === 'p' || key === 'з') setTool('pen');
+      else if (code === 'KeyC' || key === 'c' || key === 'с') setTool('connect');
+      else if (code === 'KeyF' || key === 'f' || key === 'а') setFocusMode((value) => !value);
+      else if (code === 'KeyE' || key === 'e' || key === 'у') setTool('eraser');
+      else if (code === 'KeyM' || key === 'm' || key === 'ь') magicLayout();
     };
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.code === 'Space') setSpacePressed(false);
@@ -1227,15 +1342,46 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
           {tool === 'pen' && (
             <>
               <span className="sep" />
-              {PEN_COLORS.map((color) => (
-                <button
-                  key={color}
-                  className={`pen-color${penColor === color ? ' active' : ''}`}
-                  style={{ background: color }}
-                  title="Цвет пера"
-                  onClick={() => setPenColor(color)}
-                />
-              ))}
+              <div className="pen-sizes-bar" title="Толщина кисти">
+                {PEN_WIDTH_PRESETS.map((w) => (
+                  <button
+                    key={w}
+                    className={`pen-size-opt${penWidth === w ? ' active' : ''}`}
+                    title={`Толщина: ${w}px`}
+                    onClick={() => handleSetPenWidth(w)}
+                  >
+                    <span
+                      className="pen-size-dot"
+                      style={{
+                        width: Math.max(3, Math.min(13, w)),
+                        height: Math.max(3, Math.min(13, w)),
+                      }}
+                    />
+                  </button>
+                ))}
+                <span className="pen-width-badge">{penWidth}px</span>
+              </div>
+              <span className="sep" />
+              <div className="pen-palette-bar">
+                {PEN_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    className={`pen-color${penColor.toLowerCase() === color.toLowerCase() ? ' active' : ''}`}
+                    style={{ background: color }}
+                    title={color}
+                    onClick={() => handleSetPenColor(color)}
+                  />
+                ))}
+                <label className="pen-custom-color-btn" title="Выбрать любой цвет">
+                  <input
+                    type="color"
+                    className="pen-native-color-input"
+                    value={penColor}
+                    onChange={(e) => handleSetPenColor(e.target.value)}
+                  />
+                  <span className="color-wheel-icon">🎨</span>
+                </label>
+              </div>
             </>
           )}
           <span className="sep" />
@@ -1457,51 +1603,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
             ))}
           </svg>
 
-          {remoteCursors
-            .filter((c) => c.canvasId === canvas.id)
-            .map((c) => (
-              <div
-                key={c.id}
-                className="remote-cursor"
-                style={{
-                  position: 'absolute',
-                  left: c.x,
-                  top: c.y,
-                  pointerEvents: 'none',
-                  zIndex: 400,
-                  transform: 'translate(-2px, -2px)',
-                  transition: 'left 0.05s ease-out, top 0.05s ease-out',
-                }}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M5.65 2.15C5.3 1.8 4.7 2.05 4.7 2.55V21.45C4.7 21.95 5.3 22.2 5.65 21.85L10.9 16.6H19.55C20.05 16.6 20.3 16 19.95 15.65L5.65 2.15Z"
-                    fill={c.color}
-                    stroke="#000000"
-                    strokeWidth="1.5"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: 14,
-                    top: 14,
-                    padding: '2px 7px',
-                    borderRadius: 4,
-                    background: c.color,
-                    color: '#ffffff',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  {c.name}
-                </div>
-              </div>
-            ))}
+          <RemoteCursorsOverlay canvasId={canvas.id} />
         </div>
 
         {marquee && <div className="marquee" style={rectStyle(marquee.x0, marquee.y0, marquee.x1, marquee.y1)} />}

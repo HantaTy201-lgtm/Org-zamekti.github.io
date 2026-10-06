@@ -23,6 +23,7 @@ export function SettingsModal() {
     importJson,
     resetDemo,
     setUserName,
+    setUserAvatar,
     toast,
     theme,
     setTheme,
@@ -35,6 +36,21 @@ export function SettingsModal() {
   } = useStore();
   const [name, setName] = useState(ws.user.name);
   const fileRef = useRef<HTMLInputElement>(null);
+  const avatarFileRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+      setUserAvatar(dataUrl);
+      toast('Аватарка обновлена!');
+    };
+    reader.readAsDataURL(file);
+  };
 
   const bytes = new Blob([JSON.stringify(ws)]).size;
 
@@ -51,15 +67,79 @@ export function SettingsModal() {
 
         <div className="modal-body" style={{ maxHeight: '64vh', padding: '4px 0 12px' }}>
           <div className="form-row">
-            <label>Имя пользователя</label>
-            <input value={name} onChange={(event) => setName(event.target.value)} onBlur={() => {
-              const trimmed = name.trim() || 'Гость';
-              setName(trimmed);
-              if (trimmed !== ws.user.name) {
-                setUserName(trimmed);
-                toast('Имя сохранено');
-              }
-            }} />
+            <label>Профиль и аватарка</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  background: 'var(--ov-10)',
+                  border: '1.5px solid var(--line-strong)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                }}
+              >
+                {ws.user.avatar ? (
+                  <img
+                    src={ws.user.avatar}
+                    alt={ws.user.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  ws.user.name.slice(0, 1)
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                <input
+                  value={name}
+                  placeholder="Твоё имя"
+                  onChange={(event) => setName(event.target.value)}
+                  onBlur={() => {
+                    const trimmed = name.trim() || 'Гость';
+                    setName(trimmed);
+                    if (trimmed !== ws.user.name) {
+                      setUserName(trimmed);
+                      toast('Имя сохранено');
+                    }
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn"
+                    style={{ fontSize: 12, padding: '4px 10px' }}
+                    onClick={() => avatarFileRef.current?.click()}
+                  >
+                    <Icon name="image" size={13} />
+                    {ws.user.avatar ? 'Сменить фото' : 'Поставить фото'}
+                  </button>
+                  {ws.user.avatar && (
+                    <button
+                      className="btn"
+                      style={{ fontSize: 12, padding: '4px 10px', color: 'var(--danger)' }}
+                      onClick={() => {
+                        setUserAvatar(undefined);
+                        toast('Аватарка удалена');
+                      }}
+                    >
+                      <Icon name="trash" size={13} />
+                      Удалить
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <input
+              ref={avatarFileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleAvatarUpload}
+            />
           </div>
 
           <div className="panel-section" style={{ margin: '12px 18px 0' }}>
@@ -122,17 +202,25 @@ export function SettingsModal() {
             )}
             {peers.length > 0 && (
               <div className="peer-avatars" style={{ marginTop: 10 }}>
-                <span className="peer-avatar" style={{ background: 'var(--txt)', color: 'var(--bg-0)' }}>
-                  {ws.user.name.slice(0, 1)}
+                <span className="peer-avatar" style={{ background: 'var(--txt)', color: 'var(--bg-0)', overflow: 'hidden' }}>
+                  {ws.user.avatar ? (
+                    <img src={ws.user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    ws.user.name.slice(0, 1)
+                  )}
                 </span>
                 {peers.map((peer) => (
                   <span
                     key={peer.id}
                     className="peer-avatar"
-                    style={{ background: peer.color }}
+                    style={{ background: peer.color, overflow: 'hidden' }}
                     title={peer.name}
                   >
-                    {peer.name.slice(0, 1)}
+                    {peer.avatar ? (
+                      <img src={peer.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      peer.name.slice(0, 1)
+                    )}
                   </span>
                 ))}
               </div>

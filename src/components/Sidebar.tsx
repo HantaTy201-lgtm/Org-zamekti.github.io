@@ -147,7 +147,16 @@ export function Sidebar() {
       <div className="sidebar-foot">
         <div style={{ position: 'relative' }} ref={menuRef}>
           <button className="user-chip" onClick={() => setMenuOpen((v) => !v)}>
-            <span className="avatar">{ws.user.name.slice(0, 1)}</span>
+            {ws.user.avatar ? (
+              <img
+                src={ws.user.avatar}
+                alt={ws.user.name}
+                className="avatar-img"
+                style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : (
+              <span className="avatar">{ws.user.name.slice(0, 1)}</span>
+            )}
             <span className="name">{ws.user.name}</span>
             <Icon name="chevron-down" size={14} />
           </button>

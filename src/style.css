@@ -341,12 +341,17 @@ textarea {
   display: grid;
   place-items: center;
   color: var(--txt-3);
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: all 0.14s ease;
+  user-select: none;
 }
 
 .icon-btn:hover {
   background: var(--ov-06);
   color: var(--txt);
+}
+
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
 .icon-btn.active {
@@ -628,12 +633,18 @@ textarea {
   background: var(--ov-04);
   color: var(--txt);
   font-size: 13px;
-  transition: background 0.14s ease, border-color 0.14s ease;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
 
 .btn:hover {
   background: var(--ov-08);
   border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: scale(0.96) translateY(0);
 }
 
 .btn.primary {
@@ -645,7 +656,12 @@ textarea {
 }
 
 .btn.primary:hover {
-  opacity: 0.9;
+  opacity: 0.92;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.btn.primary:active {
+  transform: scale(0.96);
 }
 
 .btn.ghost {
@@ -989,6 +1005,22 @@ textarea {
 
 /* ---------- modal / palette ---------- */
 
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -999,6 +1031,7 @@ textarea {
   justify-content: center;
   align-items: flex-start;
   padding-top: 12vh;
+  animation: overlayFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal {
@@ -1008,6 +1041,8 @@ textarea {
   background: var(--panel-solid);
   box-shadow: var(--shadow);
   overflow: hidden;
+  animation: modalPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .modal.wide {
@@ -1129,6 +1164,17 @@ textarea {
   transform: translateX(16px);
 }
 
+@keyframes menuFadePop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .menu {
   position: absolute;
   z-index: 70;
@@ -1138,6 +1184,8 @@ textarea {
   border: 1px solid var(--line-strong);
   background: var(--panel-solid);
   box-shadow: var(--shadow);
+  animation: menuFadePop 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top left;
 }
 
 .menu button {
@@ -1150,6 +1198,7 @@ textarea {
   color: var(--txt-2);
   font-size: 13px;
   text-align: left;
+  transition: all 0.12s ease;
 }
 
 .menu button:hover {
@@ -1168,6 +1217,17 @@ textarea {
   background: var(--line);
 }
 
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
 .toast {
   position: fixed;
   bottom: 22px;
@@ -1181,6 +1241,7 @@ textarea {
   box-shadow: var(--shadow);
   font-size: 13px;
   color: var(--txt);
+  animation: toastSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .sr-only {

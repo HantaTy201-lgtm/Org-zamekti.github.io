@@ -41,6 +41,20 @@ const STICKER_COLORS = [
   '#27272a', // Dark Slate
 ];
 
+export const FONT_OPTIONS: { id: string; name: string; family: string }[] = [
+  { id: 'inter', name: 'Inter', family: 'Inter, sans-serif' },
+  { id: 'caveat', name: 'Рукописный', family: '"Caveat", cursive' },
+  { id: 'mono', name: 'Моно', family: '"JetBrains Mono", monospace' },
+  { id: 'merriweather', name: 'Антиква', family: '"Merriweather", serif' },
+  { id: 'montserrat', name: 'Montserrat', family: '"Montserrat", sans-serif' },
+  { id: 'comfortaa', name: 'Округлый', family: '"Comfortaa", cursive' },
+];
+
+export function getFontFamilyCss(fontId?: string): string {
+  const found = FONT_OPTIONS.find((f) => f.id === fontId);
+  return found ? found.family : 'Inter, sans-serif';
+}
+
 export const NodeCard = memo(function NodeCard({
   node,
   selected,
@@ -392,6 +406,18 @@ export const NodeCard = memo(function NodeCard({
               />
               <span className="color-wheel-icon">🎨</span>
             </label>
+            <span style={{ width: 1, height: 16, background: 'var(--line)', margin: '0 3px' }} />
+            {FONT_OPTIONS.slice(0, 4).map((f) => (
+              <button
+                key={f.id}
+                className={`font-opt-btn-mini${(node.fontFamily || 'inter') === f.id ? ' active' : ''}`}
+                style={{ fontFamily: f.family }}
+                title={`Шрифт: ${f.name}`}
+                onClick={() => onPatch(node.id, { fontFamily: f.id })}
+              >
+                {f.name.slice(0, 3)}
+              </button>
+            ))}
           </div>
         )}
 
@@ -400,7 +426,10 @@ export const NodeCard = memo(function NodeCard({
           className="sticker-textarea"
           placeholder="Текст стикера…"
           value={editing ? localText : (node.text ?? '')}
-          style={{ color: isDark ? '#ffffff' : '#1c1917' }}
+          style={{
+            color: isDark ? '#ffffff' : '#1c1917',
+            fontFamily: getFontFamilyCss(node.fontFamily),
+          }}
           onChange={(event) => handleTextChange(event.target.value)}
           onBlur={handleTextBlur}
           onPointerDown={(event) => event.stopPropagation()}
@@ -480,6 +509,7 @@ export const NodeCard = memo(function NodeCard({
   }
 
   if (node.kind === 'plain') {
+    const fontFamilyCss = getFontFamilyCss(node.fontFamily);
     return (
       <div
         className={`node plain tone-${node.tone}${selected ? ' selected' : ''}${dragging ? ' dragging' : ''}`}
@@ -491,20 +521,41 @@ export const NodeCard = memo(function NodeCard({
           onStartEdit(node);
         }}
       >
+        {selected && (
+          <div className="node-font-bar" onPointerDown={(e) => e.stopPropagation()}>
+            <span className="font-bar-label">Шрифт:</span>
+            {FONT_OPTIONS.map((f) => (
+              <button
+                key={f.id}
+                className={`font-opt-btn${(node.fontFamily || 'inter') === f.id ? ' active' : ''}`}
+                style={{ fontFamily: f.family }}
+                title={`Шрифт: ${f.name}`}
+                onClick={() => onPatch(node.id, { fontFamily: f.id })}
+              >
+                {f.name}
+              </button>
+            ))}
+          </div>
+        )}
         {editing ? (
           <textarea
             ref={plainInput}
             className="node-plain-input"
             placeholder="Введи текст…"
             value={localText}
+            style={{ fontFamily: fontFamilyCss }}
             onChange={(event) => handleTextChange(event.target.value)}
             onBlur={handleTextBlur}
             onPointerDown={(event) => event.stopPropagation()}
           />
         ) : node.text ? (
-          <div className="node-plain-text">{node.text}</div>
+          <div className="node-plain-text" style={{ fontFamily: fontFamilyCss }}>
+            {node.text}
+          </div>
         ) : (
-          <div className="node-plain-text empty">Двойной клик — введи текст</div>
+          <div className="node-plain-text empty" style={{ fontFamily: fontFamilyCss }}>
+            Двойной клик — введи текст
+          </div>
         )}
         {selected && !editing && (
           <span className="node-resize" onPointerDown={(event) => onResizeDown(event, node)} />

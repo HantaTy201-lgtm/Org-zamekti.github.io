@@ -62,17 +62,21 @@ export function App() {
       const target = event.target as HTMLElement | null;
       const typing =
         target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      const isCmd = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      const code = event.code;
+
+      if (isCmd && (code === 'KeyK' || key === 'k' || key === 'л')) {
         event.preventDefault();
         openPalette('all');
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
+      if (isCmd && (code === 'KeyB' || key === 'b' || key === 'и')) {
         event.preventDefault();
         setSidebarCollapsed((v) => !v);
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key === '\\') {
+      if (isCmd && (code === 'Backslash' || event.key === '\\')) {
         event.preventDefault();
         setPanelOpen((v) => !v);
         return;
