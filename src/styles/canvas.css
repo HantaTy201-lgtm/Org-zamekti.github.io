@@ -556,6 +556,14 @@
   cursor: cell !important;
 }
 
+.board.tool-eraser .node input,
+.board.tool-eraser .node textarea,
+.board.tool-eraser .node button,
+.board.tool-eraser .node .node-plain-input,
+.board.tool-eraser .node .sticker-textarea {
+  pointer-events: none !important;
+}
+
 .pen-sizes-bar {
   display: flex;
   align-items: center;

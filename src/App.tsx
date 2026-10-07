@@ -12,6 +12,7 @@ import { TasksView } from './views/TasksView';
 import { CalendarView } from './views/CalendarView';
 import { KnowledgeView } from './views/KnowledgeView';
 import { SelectionProvider } from './lib/selection';
+import { AIAgentIsland } from './components/AIAgentIsland';
 import { useStore } from './store';
 
 function ActiveView() {
@@ -107,6 +108,7 @@ export function App() {
 
         {paletteOpen && <CommandPalette />}
         {settingsOpen && <SettingsModal />}
+        <AIAgentIsland />
         {toastMessage && <div className="toast">{toastMessage}</div>}
       </div>
     </SelectionProvider>

@@ -1369,3 +1369,300 @@ textarea {
 :root[data-theme='light'] .node.dragging {
   box-shadow: 0 22px 44px rgba(0, 0, 0, 0.15);
 }
+
+/* ---------- AI Agent Island ---------- */
+
+.ai-island-container {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  width: min(560px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ai-island-bar {
+  pointer-events: auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-solid);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--ov-06);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ai-island-bar:focus-within,
+.ai-island-container.expanded .ai-island-bar {
+  border-color: var(--txt);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.65), 0 0 0 2px var(--line-active);
+}
+
+.ai-island-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  font-size: 14px;
+}
+
+.ai-island-icon.pulse .sparkle {
+  animation: sparkleSpin 1.2s infinite ease-in-out;
+}
+
+@keyframes sparkleSpin {
+  0% { transform: scale(0.9) rotate(0deg); opacity: 0.6; }
+  50% { transform: scale(1.2) rotate(180deg); opacity: 1; }
+  100% { transform: scale(0.9) rotate(360deg); opacity: 0.6; }
+}
+
+.ai-island-input {
+  flex: 1;
+  font-size: 13.5px;
+  color: var(--txt);
+  min-width: 0;
+}
+
+.ai-island-input::placeholder {
+  color: var(--txt-3);
+  font-size: 13px;
+}
+
+.ai-island-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+
+.ai-submit-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--txt);
+  color: var(--bg-0);
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.ai-submit-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.ai-submit-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.ai-key-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ov-06);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.ai-key-btn:hover {
+  background: var(--ov-12);
+  transform: scale(1.06);
+}
+
+.ai-key-btn.active {
+  border-color: var(--txt);
+  box-shadow: 0 0 0 1px var(--txt);
+}
+
+.ai-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--line);
+  border-top-color: var(--txt);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 4px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* API Key Popover */
+.ai-key-popover {
+  pointer-events: auto;
+  margin-top: 10px;
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--panel-solid);
+  box-shadow: var(--shadow);
+  animation: modalPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ai-key-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ai-key-head .title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--txt);
+}
+
+.ai-key-head .close-btn {
+  color: var(--txt-3);
+  cursor: pointer;
+}
+
+.ai-key-desc {
+  font-size: 12px;
+  color: var(--txt-2);
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+
+.ai-key-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-key-input-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+  background: var(--ov-04);
+  color: var(--txt);
+  font-size: 13px;
+}
+
+.ai-key-help {
+  margin-top: 10px;
+  font-size: 11.5px;
+}
+
+.ai-key-help a {
+  color: var(--txt-2);
+  text-decoration: underline;
+}
+
+.ai-key-help a:hover {
+  color: var(--txt);
+}
+
+/* AI Island Dropdown */
+.ai-island-dropdown {
+  pointer-events: auto;
+  margin-top: 10px;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--panel-solid);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+  animation: modalPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ai-response-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--ov-04);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-response-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt-2);
+}
+
+.ai-response-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--txt);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-action-badge {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--txt-2);
+}
+
+.ai-action-badge strong {
+  color: var(--txt);
+}
+
+.ai-quick-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chips-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--txt-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.chip-btn {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--ov-04);
+  color: var(--txt-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.chip-btn:hover {
+  background: var(--txt);
+  color: var(--bg-0);
+  border-color: transparent;
+  transform: translateY(-1px);
+}

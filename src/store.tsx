@@ -112,17 +112,29 @@ function loadWorkspace(): Workspace {
     const demoNoteIds = new Set([
       'n_strategy', 'n_competitors', 'n_scenarios', 'n_features', 'n_mvp',
       'n_design', 'n_onboarding', 'n_retro', 'n_reading', 'n_book_notes',
+      'n_plan', 'n_inspire', 'n_roadmap', 'n_goals',
+    ]);
+    const demoNoteTitles = new Set([
+      'продуктовая стратегия', 'конкуренты', 'пользовательские сценарии',
+      'идеи для фич', 'mvp', 'дизайн-система', 'онбординг',
+      'ретроспектива квартала', 'план на квартал', 'вдохновение', 'список чтения',
     ]);
     const demoNodeIds = new Set([
       'cn_ideas', 'cn_projects', 'cn_org', 'cn_inspire', 'cn_plan', 'cn_links',
     ]);
 
     const notes = (Array.isArray(parsed.notes) ? parsed.notes : []).filter(
-      (n) => !demoNoteIds.has(n.id),
+      (n) => !demoNoteIds.has(n.id) && !demoNoteTitles.has((n.title || '').trim().toLowerCase()),
     );
     let canvases: Canvas[] = (Array.isArray(parsed.canvases) ? (parsed.canvases as Canvas[]) : []).map((c) => ({
       ...c,
-      nodes: (c.nodes ?? []).filter((node) => !demoNodeIds.has(node.id)),
+      nodes: (c.nodes ?? []).filter(
+        (node) =>
+          !demoNodeIds.has(node.id) &&
+          !demoNoteIds.has(node.id) &&
+          node.title !== 'Org' &&
+          !(node.bullets && node.bullets.includes('Заметки. Канвасы. Люди.')),
+      ),
       edges: (c.edges ?? []).filter((edge) => !demoNodeIds.has(edge.from) && !demoNodeIds.has(edge.to)),
       strokes: Array.isArray(c.strokes) ? c.strokes : [],
     }));
@@ -446,22 +458,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       name,
       description: 'Собери идеи в узлы и соедини их связями.',
       spaceId: spaceId ?? (current.activeSpaceId !== 'all' ? current.activeSpaceId : (current.spaces[0]?.id ?? '')),
-      nodes: [
-        {
-          id: uid('cn'),
-          x: 320,
-          y: 220,
-          w: 250,
-          h: 112,
-          title: 'Org',
-          icon: '',
-          tone: 'violet',
-          kind: 'text',
-          bullets: ['Заметки. Канвасы. Люди.'],
-          items: [],
-          links: [],
-        },
-      ],
+      nodes: [],
       edges: [],
       strokes: [],
       viewport: { x: 0, y: 0, zoom: 1 },
@@ -598,8 +595,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const resetDemo = useCallback(() => {
     past.current = [];
     future.current = [];
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
     setWs(createSeed());
-  }, []);
+    toast('Рабочее пространство сброшено к чистому листу');
+  }, [toast]);
 
   // --- совместная работа: гибридный WebSocket (100% совместимость с Mac/Windows/моб) + WebRTC ---
   const [room, setRoom] = useState(readRoomParam);

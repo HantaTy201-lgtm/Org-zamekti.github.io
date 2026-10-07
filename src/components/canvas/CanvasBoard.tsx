@@ -667,7 +667,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       return;
     }
     if (event.button !== 0) return;
-    if (target.closest('input, textarea')) return;
+    if (tool !== 'eraser' && target.closest('input, textarea')) return;
 
     // Двойной клик по узлу открывает редактирование. Событие dblclick сюда не доходит:
     // после setPointerCapture браузер адресует его холсту, а не карточке.
@@ -675,16 +675,14 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     const pressedNodeId = (pressedNodeEl?.dataset.nodeId ?? null) as Id | null;
     lastDownOnNode.current = pressedNodeId;
 
-    if (pressedNodeId && (tool === 'select' || tool === 'eraser')) {
+    if (pressedNodeId && tool === 'select') {
       const now = Date.now();
       const previous = lastNodePress.current;
       if (previous && previous.id === pressedNodeId && now - previous.at < 450) {
         lastNodePress.current = null;
         gesture.current = null;
-        if (tool === 'select') {
-          setSelection([pressedNodeId]);
-          setEditingId(pressedNodeId);
-        }
+        setSelection([pressedNodeId]);
+        setEditingId(pressedNodeId);
         return;
       }
       lastNodePress.current = { id: pressedNodeId, at: now };
@@ -704,7 +702,7 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
         gesture.current = { kind: 'eraser' };
         return;
       }
-      const strokeToErase = findStrokeAt(world.x, world.y, strokes, 18);
+      const strokeToErase = findStrokeAt(world.x, world.y, strokes, 20);
       if (strokeToErase) {
         mutateCanvas(canvas.id, (c) => ({
           ...c,
@@ -717,8 +715,15 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
       if (target.closest('path.hit')) {
         return;
       }
-      if (pressedNodeId) {
-        removeNodes([pressedNodeId]);
+      const hitNode = pressedNodeId
+        ? nodes.find((n) => n.id === pressedNodeId)
+        : [...nodes].reverse().find(
+            (n) => world.x >= n.x && world.x <= n.x + n.w && world.y >= n.y && world.y <= n.y + n.h,
+          );
+      if (hitNode) {
+        removeNodes([hitNode.id]);
+        capturePointer(board, event.pointerId);
+        gesture.current = { kind: 'eraser' };
         return;
       }
       capturePointer(board, event.pointerId);
@@ -861,12 +866,18 @@ export function CanvasBoard({ canvas }: { canvas: Canvas }) {
     }
 
     if (g.kind === 'eraser') {
-      const strokeToErase = findStrokeAt(world.x, world.y, strokes, 18);
+      const strokeToErase = findStrokeAt(world.x, world.y, strokes, 20);
       if (strokeToErase) {
         mutateCanvas(canvas.id, (c) => ({
           ...c,
           strokes: (c.strokes ?? []).filter((s) => s.id !== strokeToErase.id),
         }));
+      }
+      const nodeToErase = [...nodes].reverse().find(
+        (n) => world.x >= n.x && world.x <= n.x + n.w && world.y >= n.y && world.y <= n.y + n.h,
+      );
+      if (nodeToErase) {
+        removeNodes([nodeToErase.id]);
       }
       return;
     }

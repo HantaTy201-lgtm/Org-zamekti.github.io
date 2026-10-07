@@ -73,6 +73,16 @@ export function TopBar({ panelOpen, onTogglePanel, onToggleSidebar }: Props) {
       </div>
 
       <div className="topbar-right">
+        <button
+          className="icon-btn"
+          title="ИИ Агент (Ctrl+J)"
+          onClick={() => {
+            const el = document.querySelector('.ai-island-input') as HTMLInputElement | null;
+            el?.focus();
+          }}
+        >
+          <span style={{ fontSize: 14 }}>✨</span>
+        </button>
         <button className="searchbar" onClick={() => openPalette('search')}>
           <Icon name="search" size={15} />
           <span>Поиск по всему</span>

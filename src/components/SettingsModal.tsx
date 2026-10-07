@@ -11,6 +11,7 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: 'Ctrl + колесо', action: 'Масштаб канваса' },
   { keys: 'Пробел + перетаскивание', action: 'Панорама канваса' },
   { keys: 'Ctrl + Z / Ctrl + Y', action: 'Отменить / повторить' },
+  { keys: 'Ctrl + J', action: 'ИИ Агент и островковый поиск' },
   { keys: '[[ ]', action: 'Связь между заметками' },
   { keys: '#тег', action: 'Метка внутри заметки' },
 ];
@@ -35,6 +36,7 @@ export function SettingsModal() {
     copyShareLink,
   } = useStore();
   const [name, setName] = useState(ws.user.name);
+  const [aiKey, setAiKey] = useState(() => localStorage.getItem('org.ai.apiKey') || '');
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarFileRef = useRef<HTMLInputElement>(null);
 
@@ -244,19 +246,70 @@ export function SettingsModal() {
               </button>
               <button
                 className="btn"
+                title="Очистить все заметки, карточки канваса и задачи до чистого листа"
                 onClick={() => {
-                  resetDemo();
-                  toast('Демо-данные восстановлены');
+                  if (window.confirm('Очистить всё рабочее пространство до чистого листа?')) {
+                    resetDemo();
+                  }
                 }}
               >
                 <Icon name="refresh" size={15} />
-                Сбросить к демо
+                Очистить всё (Чистый лист)
               </button>
             </div>
             <p className="stat-label" style={{ marginTop: 10 }}>
               Org работает локально: данные хранятся в этом браузере и не отправляются на сервер.
               Экспортируй JSON, чтобы перенести пространство на другое устройство.
             </p>
+          </div>
+
+          <div className="panel-section" style={{ margin: '14px 18px 0' }}>
+            <h4>ИИ Агент (API-ключ)</h4>
+            <div className="stat-label" style={{ marginBottom: 10 }}>
+              Ключ используется для умного плавающего островка (Ctrl + J): генерация заметок, стикеров на холст и ответы на вопросы.
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="password"
+                placeholder="Google Gemini API ключ или OpenAI (sk-...)"
+                value={aiKey}
+                onChange={(e) => setAiKey(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-xs)',
+                  border: '1px solid var(--line)',
+                  background: 'var(--ov-04)',
+                  color: 'var(--txt)',
+                  fontSize: 13,
+                }}
+              />
+              <button
+                className="btn primary"
+                onClick={() => {
+                  const trimmed = aiKey.trim();
+                  if (trimmed) {
+                    localStorage.setItem('org.ai.apiKey', trimmed);
+                    toast('API-ключ сохранён');
+                  } else {
+                    localStorage.removeItem('org.ai.apiKey');
+                    toast('API-ключ удалён');
+                  }
+                }}
+              >
+                Сохранить
+              </button>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12 }}>
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'var(--txt-2)', textDecoration: 'underline' }}
+              >
+                Получить бесплатный API-ключ в Google AI Studio ↗
+              </a>
+            </div>
           </div>
 
           <div className="panel-section" style={{ margin: '18px 18px 0' }}>
